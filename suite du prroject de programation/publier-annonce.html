@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="Publiez une annonce sur Sénégal Élevage — vendez ou achetez du matériel, des animaux et des produits d'élevage.">
+  <title>Ajouter une Annonce - Senegal Elevage</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="publish-page">
+  <header class="header">
+    <div class="container">
+      <nav class="navbar">
+        <a href="index.html" class="logo">
+          <i class="fas fa-cow"></i>
+          <span>Sénégal<span class="highlight">Élevage</span></span>
+        </a>
+        <div class="nav-links">
+          <a href="index.html"><i class="fas fa-home"></i> Accueil</a>
+          <a href="materiel.html"><i class="fas fa-tools"></i> Matériel</a>
+          <a href="betail.html"><i class="fas fa-cow"></i> Bétail</a>
+          <a href="services.html"><i class="fas fa-handshake"></i> Services</a>
+          <a href="publier-annonce.html" class="active"><i class="fas fa-plus-circle"></i> Créer une annonce</a>
+          <a href="annonces.html"><i class="fas fa-bullhorn"></i> Annonces</a>
+          <a href="authentification.html"><i class="fas fa-user"></i> Mon Compte</a>
+          <a href="contact.html"><i class="fas fa-envelope"></i> Contact</a>
+        </div>
+        <div class="mobile-menu-btn">
+          <i class="fas fa-bars"></i>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+
+  <div class="publish-layout">
+    <!-- Colonne Gauche: Formulaire -->
+    <div class="form-container">
+      <!-- Messages d'alerte -->
+      <div class="alert-message success" id="successMessage" style="display: none;">
+        <i class="fas fa-check-circle"></i>
+        <div>
+          <strong>Annonce publiée avec succès !</strong>
+          <p>Votre annonce est maintenant visible sur la plateforme.</p>
+        </div>
+      </div>
+
+      <div class="alert-message error" id="errorMessage" style="display: none;">
+        <i class="fas fa-exclamation-circle"></i>
+        <div>
+          <strong>Erreur</strong>
+          <p>Veuillez vérifier tous les champs obligatoires.</p>
+          
+        </div>
+      </div>
+
+      <!-- Formulaire -->
+      <form id="annoncesForm">
+        <!-- Section Informations de Base -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <i class="fas fa-file-alt"></i>
+            </div>
+            <h2>Informations de Base</h2>
+          </div>
+
+          <div class="form-group">
+            <label for="titre" class="form-label">
+              Titre de l'annonce <span class="required">*</span>
+              <span class="help-text">Soyez clair et descriptif</span>
+            </label>
+            <input type="text" id="titre" name="titre"
+              placeholder="Ex: Poules pondeuses de qualité, Vaches laitières primées" class="form-control" required />
+          </div>
+
+          <div class="form-group">
+            <label for="description" class="form-label">
+              Description détaillée <span class="required">*</span>
+              <span class="help-text">Inclure l'âge, la race, la santé, etc.</span>
+            </label>
+            <textarea id="description" name="description"
+              placeholder="Décrivez votre produit en détail : race, âge, état de santé, alimentation, vaccins, etc."
+              class="form-control textarea" rows="4" required></textarea>
+            <div class="char-counter">
+              <span id="charCount">0</span>/500 caractères
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col">
+              <div class="form-group">
+                <label for="categorie" class="form-label">
+                  Catégorie <span class="required">*</span>
+                </label>
+                <div class="select-wrapper">
+                  <select id="categorie" name="categorie" class="form-control" required>
+                    <option value="">Sélectionner une catégorie</option>
+                    <option value="volaille">Volaille (Poules, Canards, Dindes)</option>
+                    <option value="bovins">Bovins (Vaches, Taureaux, Veaux)</option>
+                    <option value="ovins">Ovins (Moutons, Chèvres)</option>
+                    <option value="porcins">Porcins (Cochons)</option>
+                    <option value="equins">Équins (Chevaux, Ânes)</option>
+                    <option value="produits">Produits (Lait, Viande, Œufs, Cuir)</option>
+                    <option value="materiaux">Matériel d'Élevage</option>
+                    <option value="aliments">Aliments et Fourrage</option>
+                    <option value="services">Services (Vétérinaire, Transport)</option>
+                    <option value="autre">Autre</option>
+                  </select>
+                  <i class="fas fa-chevron-down select-arrow"></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-col">
+              <div class="form-group">
+                <label for="etat" class="form-label">
+                  État du produit <span class="required">*</span>
+                </label>
+                <div class="select-wrapper">
+                  <select id="etat" name="etat" class="form-control" required>
+                    <option value="">Sélectionner l'état</option>
+                    <option value="excellent">Excellent</option>
+                    <option value="bon">Bon état</option>
+                    <option value="moyen">État moyen</option>
+                    <option value="renovation">À rénover</option>
+                  </select>
+                  <i class="fas fa-chevron-down select-arrow"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Prix et Localisation -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <h2>Prix et Localisation</h2>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col">
+              <div class="form-group">
+                <label for="prix" class="form-label">
+                  Prix <span class="required">*</span>
+                </label>
+                <div class="input-with-icon">
+                  <input type="number" id="prix" name="prix" placeholder="Ex: 50000" min="0" step="100"
+                    class="form-control" required />
+                  <i class="fas fa-tag input-icon"></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-col">
+              <div class="form-group">
+                <label for="devise" class="form-label">
+                  Devise <span class="required">*</span>
+                </label>
+                <div class="select-wrapper">
+                  <select id="devise" name="devise" class="form-control" required>
+                    <option value="FCFA">FCFA</option>
+                    <option value="XOF">XOF</option>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                  </select>
+                  <i class="fas fa-chevron-down select-arrow"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col">
+              <div class="form-group">
+                <label for="localisation" class="form-label">
+                  Ville/Commune <span class="required">*</span>
+                </label>
+                <div class="input-with-icon">
+                  <input type="text" id="localisation" name="localisation" placeholder="Ex: Dakar, Kaolack, Saint-Louis"
+                    class="form-control" required />
+                  <i class="fas fa-map-marker-alt input-icon"></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-col">
+              <div class="form-group">
+                <label for="region" class="form-label">
+                  Région <span class="required">*</span>
+                </label>
+                <div class="select-wrapper">
+                  <select id="region" name="region" class="form-control" required>
+                    <option value="">Sélectionner une région</option>
+                    <option value="dakar">Dakar</option>
+                    <option value="thies">Thiès</option>
+                    <option value="kaolack">Kaolack</option>
+                    <option value="saint-louis">Saint-Louis</option>
+                    <option value="tambacounda">Tambacounda</option>
+                    <option value="kolda">Kolda</option>
+                    <option value="ziguinchor">Ziguinchor</option>
+                    <option value="kedougou">Kédougou</option>
+                    <option value="louga">Louga</option>
+                    <option value="matam">Matam</option>
+                    <option value="fatick">Fatick</option>
+                    <option value="diourbel">Diourbel</option>
+                    <option value="sedhiou">Sédhiou</option>
+                  </select>
+                  <i class="fas fa-chevron-down select-arrow"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Contact -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <i class="fas fa-address-book"></i>
+            </div>
+            <h2>Informations de Contact</h2>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col">
+              <div class="form-group">
+                <label for="nom" class="form-label">
+                  Nom complet <span class="required">*</span>
+                </label>
+                <div class="input-with-icon">
+                  <input type="text" id="nom" name="nom" placeholder="Votre nom et prénom" class="form-control"
+                    required />
+                  <i class="fas fa-user input-icon"></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-col">
+              <div class="form-group">
+                <label for="telephone" class="form-label">
+                  Téléphone <span class="required">*</span>
+                </label>
+                <div class="input-with-icon">
+                  <input type="tel" id="telephone" name="telephone" placeholder="Ex: +221 77 123 45 67"
+                    class="form-control" required />
+                  <i class="fas fa-phone input-icon"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col">
+              <div class="form-group">
+                <label for="email" class="form-label">
+                  Adresse email
+                </label>
+                <div class="input-with-icon">
+                  <input type="email" id="email" name="email" placeholder="votre.email@exemple.com"
+                    class="form-control" />
+                  <i class="fas fa-envelope input-icon"></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-col">
+              <div class="form-group">
+                <label for="entreprise" class="form-label">
+                  Nom de l'entreprise/Ferme
+                </label>
+                <div class="input-with-icon">
+                  <input type="text" id="entreprise" name="entreprise" placeholder="Ex: Ferme Bio Sénégal"
+                    class="form-control" />
+                  <i class="fas fa-home input-icon"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Images -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <i class="fas fa-images"></i>
+            </div>
+            <h2>Photos du Produit</h2>
+          </div>
+
+          <p class="section-description">
+            Ajoutez jusqu'à 5 photos de qualité. La première photo sera utilisée comme photo principale.
+          </p>
+
+          <div class="image-upload-container">
+            <div class="upload-area" id="uploadArea">
+              <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+              </div>
+              <h3>Glissez-déposez vos images ici</h3>
+              <p>ou <label for="fileInput" class="browse-link">parcourir vos fichiers</label></p>
+              <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.gif" style="display: none;" multiple>
+              <p class="upload-note">
+                Formats acceptés: JPG, PNG, GIF (max. 5MB par image)
+              </p>
+            </div>
+
+            <input type="file" id="imageInput" name="images" multiple accept="image/*" style="display: none;" />
+
+            <div class="image-preview-container" id="imagePreviewContainer">
+              <!-- Les aperçus d'images seront ajoutés ici -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Options -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <i class="fas fa-cogs"></i>
+            </div>
+            <h2>Options Supplémentaires</h2>
+          </div>
+
+
+          <div class="options-container">
+            <div class="option-card">
+              <div class="option-header">
+                <label class="option-label">
+                  <input type="checkbox" id="livraison" name="livraison" class="option-checkbox" />
+                  <span class="checkbox-custom"></span>
+                  <span class="option-title">
+                    <i class="fas fa-truck option-icon"></i>
+                    Livraison possible
+                  </span>
+                </label>
+              </div>
+              <p class="option-description">
+                Je peux organiser la livraison dans certaines régions.
+              </p>
+            </div>
+
+            <div class="option-card">
+              <div class="option-header">
+                <label class="option-label">
+                  <input type="checkbox" id="negociation" name="negociation" class="option-checkbox" checked />
+                  <span class="checkbox-custom"></span>
+                  <span class="option-title">
+                    <i class="fas fa-handshake option-icon"></i>
+                    Prix négociable
+                  </span>
+                </label>
+              </div>
+              <p class="option-description">
+                Ouvert à la discussion sur le prix.
+              </p>
+            </div>
+
+            <div class="option-card">
+              <div class="option-header">
+                <label class="option-label">
+                  <input type="checkbox" id="urgent" name="urgent" class="option-checkbox" />
+                  <span class="checkbox-custom"></span>
+                  <span class="option-title">
+                    <i class="fas fa-bolt option-icon"></i>
+                    Annonce urgente
+                  </span>
+                </label>
+              </div>
+              <p class="option-description">
+                Cette annonce est prioritaire.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Boutons -->
+        <div class="form-actions">
+          <button type="reset" class="btn btn-secondary" id="resetBtn">
+            <i class="fas fa-redo"></i>
+            Réinitialiser
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-paper-plane"></i>
+            Publier l'Annonce
+          </button>
+        </div>
+
+        <div class="form-footer">
+          <p>
+            <i class="fas fa-info-circle"></i>
+            En publiant cette annonce, vous acceptez nos
+            <a href="mentions-legales.html" class="footer-link">conditions d'utilisation</a> et
+            <a href="mentions-legales.html" class="footer-link">politique de confidentialité</a>.
+          </p>
+        </div>
+      </form>
+    </div>
+
+    <!-- Colonne Droite: Live Preview -->
+    <div class="preview-sidebar">
+      <div class="preview-sticky">
+        <h3>Aperçu en direct</h3>
+        <p class="preview-note">Voici comment votre annonce apparaîtra</p>
+
+        <div class="product-card preview-card">
+          <div class="product-image-container">
+            <!-- Image par défaut ou uploadée -->
+            <img src="https://via.placeholder.com/400x300?text=Votre+Image" alt="Aperçu produit" class="product-image"
+              id="preview-image">
+            <div class="featured-badge" id="preview-badge" style="display: none;">Urgent</div>
+          </div>
+
+          <div class="product-info">
+            <div class="product-category" id="preview-category">CATÉGORIE</div>
+            <h3 class="product-name" id="preview-title">Titre de votre annonce</h3>
+
+            <div class="product-rating">
+              <div class="stars">
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="far fa-star"></i>
+              </div>
+              <span class="rating-text">(Nouveau)</span>
+            </div>
+
+            <p class="product-description" id="preview-desc">
+              La description de votre produit s'affichera ici. Soyez précis pour attirer les acheteurs.
+            </p>
+
+            <div class="product-meta">
+              <div class="product-price" id="preview-price">0 FCFA</div>
+              <div class="product-stock" id="preview-stock">Disponible</div>
+            </div>
+
+            <div class="product-vendor">
+              <i class="fas fa-map-marker-alt"></i> <span id="preview-location">Votre Ville</span>
+            </div>
+
+            <div class="delivery-info" id="preview-delivery" style="display: none;">
+              <i class="fas fa-truck"></i> Livraison possible
+            </div>
+
+            <div class="product-actions">
+              <button class="btn btn-outline" disabled>Détails</button>
+              <button class="btn btn-primary" disabled>
+                <i class="fas fa-phone-alt"></i> Contacter
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/publier-annonce.js"></script>
+</body>
+
+</html>

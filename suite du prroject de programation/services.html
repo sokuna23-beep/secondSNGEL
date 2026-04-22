@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Services - Sénégal Élevage</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <header class="header">
+        <div class="container">
+            <nav class="navbar">
+                <a href="index.html" class="logo">
+                    <i class="fas fa-cow"></i>
+                    <span>Sénégal<span class="highlight">Élevage</span></span>
+                </a>
+                <div class="nav-links">
+                    <a href="index.html"><i class="fas fa-home"></i> Accueil</a>
+                    <a href="materiel.html"><i class="fas fa-tools"></i> Matériel</a>
+                    <a href="betail.html"><i class="fas fa-cow"></i> Bétail</a>
+                    <a href="services.html" class="active"><i class="fas fa-handshake"></i> Services</a>
+                    <a href="publier-annonce.html"><i class="fas fa-plus-circle"></i> Créer une annonce</a>
+                    <a href="annonces.html"><i class="fas fa-bullhorn"></i> Annonces</a>
+                    <a href="authentification.html"><i class="fas fa-user"></i> Mon Compte</a>
+                    <a href="contact.html"><i class="fas fa-envelope"></i> Contact</a>
+                </div>
+                <div class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1><i class="fas fa-handshake"></i> Services d'Élevage</h1>
+            <p>Trouvez les meilleurs services pour votre élevage dans toutes les régions du Sénégal</p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="services-main">
+        <div class="container">
+            <!-- Service Categories -->
+            <section class="service-categories">
+                <h2><i class="fas fa-th-large"></i> Catégories de services</h2>
+                <div class="categories-grid">
+                    <button class="service-category-btn active" data-category="all">
+                        <i class="fas fa-th"></i>
+                        <span>Tous les services</span>
+                    </button>
+                    <button class="service-category-btn" data-category="veterinaire">
+                        <i class="fas fa-stethoscope"></i>
+                        <span>Services vétérinaires</span>
+                    </button>
+                    <button class="service-category-btn" data-category="transport">
+                        <i class="fas fa-truck"></i>
+                        <span>Transport</span>
+                    </button>
+                    <button class="service-category-btn" data-category="alimentation">
+                        <i class="fas fa-wheat-awn"></i>
+                        <span>Alimentation</span>
+                    </button>
+                    <button class="service-category-btn" data-category="conseil">
+                        <i class="fas fa-graduation-cap"></i>
+                        <span>Conseil & Formation</span>
+                    </button>
+                    <button class="service-category-btn" data-category="abattage">
+                        <i class="fas fa-cut"></i>
+                        <span>Abattage & Transformation</span>
+                    </button>
+                    <button class="service-category-btn" data-category="maintenance">
+                        <i class="fas fa-wrench"></i>
+                        <span>Maintenance & Réparation</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Search and Filters -->
+            <section class="search-filters">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="search-input" placeholder="Rechercher un service (type, région, prix...)">
+                </div>
+
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label>Région</label>
+                        <select id="region-filter" class="filter-select">
+                            <option value="">Toutes les régions</option>
+                            <option value="Dakar">Dakar</option>
+                            <option value="Thiès">Thiès</option>
+                            <option value="Diourbel">Diourbel</option>
+                            <option value="Fatick">Fatick</option>
+                            <option value="Kaolack">Kaolack</option>
+                            <option value="Kaffrine">Kaffrine</option>
+                            <option value="Saint-Louis">Saint-Louis</option>
+                            <option value="Louga">Louga</option>
+                            <option value="Matam">Matam</option>
+                            <option value="Tambacounda">Tambacounda</option>
+                            <option value="Kédougou">Kédougou</option>
+                            <option value="Kolda">Kolda</option>
+                            <option value="Ziguinchor">Ziguinchor</option>
+                            <option value="Sédhiou">Sédhiou</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Prix minimum</label>
+                        <input type="number" id="price-min" placeholder="Min (XOF)" class="filter-input">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Prix maximum</label>
+                        <input type="number" id="price-max" placeholder="Max (XOF)" class="filter-input">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Disponibilité</label>
+                        <select id="availability-filter" class="filter-select">
+                            <option value="">Tous</option>
+                            <option value="immediate">Immédiat</option>
+                            <option value="24h">24h</option>
+                            <option value="48h">48h</option>
+                            <option value="week">Semaine</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Services Grid -->
+            <section class="services-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-handshake"></i> Services disponibles</h2>
+                    <div class="results-count">
+                        <span id="results-count">0</span> services trouvés
+                    </div>
+                </div>
+
+                <div class="services-grid" id="services-container">
+                    <!-- Les services seront générés dynamiquement -->
+                </div>
+
+                <!-- Load More -->
+                <div class="load-more-section">
+                    <button class="btn btn-outline" id="load-more-btn">
+                        <i class="fas fa-plus"></i> Charger plus de services
+                    </button>
+                </div>
+            </section>
+
+            <!-- Featured Services -->
+            <section class="featured-services">
+                <h2><i class="fas fa-star"></i> Services vedettes</h2>
+                <div class="featured-grid" id="featured-container">
+                    <!-- Les services vedettes seront générés dynamiquement -->
+                </div>
+            </section>
+
+            <!-- Why Choose Us -->
+            <section class="why-choose">
+                <h2><i class="fas fa-check-circle"></i> Pourquoi choisir nos services ?</h2>
+                <div class="benefits-grid">
+                    <div class="benefit-card">
+                        <div class="benefit-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h3>Professionnels vérifiés</h3>
+                        <p>Tous nos prestataires sont vérifiés et notés par la communauté</p>
+                    </div>
+
+                    <div class="benefit-card">
+                        <div class="benefit-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <h3>Disponibilité 24/7</h3>
+                        <p>Services d'urgence disponibles à tout moment dans toutes les régions</p>
+                    </div>
+
+                    <div class="benefit-card">
+                        <div class="benefit-icon">
+                            <i class="fas fa-handshake"></i>
+                        </div>
+                        <h3>Garantie de satisfaction</h3>
+                        <p>Remboursement garanti si vous n'êtes pas satisfait du service</p>
+                    </div>
+
+                    <div class="benefit-card">
+                        <div class="benefit-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h3>Support client</h3>
+                        <p>Assistance téléphonique et en ligne pour toutes vos questions</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Sénégal Élevage</h3>
+                    <p>La plateforme de référence pour tous les services d'élevage au Sénégal</p>
+                </div>
+
+                <div class="footer-section">
+                    <h3>Catégories</h3>
+                    <ul>
+                        <li><a href="materiel.html">Matériel</a></li>
+                        <li><a href="betail.html">Bétail</a></li>
+                        <li><a href="services.html" class="active">Services</a></li>
+                        <li><a href="annonces.html">Toutes les annonces</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h3>Services</h3>
+                    <ul>
+                        <li><a href="contact.html">Services vétérinaires</a></li>
+                        <li><a href="contact.html">Transport d'animaux</a></li>
+                        <li><a href="contact.html">Conseil d'élevage</a></li>
+                        <li><a href="contact.html">Formation</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2025 Sénégal Élevage. Tous droits réservés.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/supabase-config.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="js/services.js"></script>
+
+    <style>
+        /* Styles spécifiques à la page services */
+        .services-main {
+            padding: 40px 0;
+            background: #f8f9fa;
+        }
+
+        .service-categories {
+            background: var(--bg-surface);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .service-categories h2 {
+            margin: 0 0 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .service-category-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 15px;
+            border: 2px solid var(--gray-light);
+            background: var(--bg-surface);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: #666;
+        }
+
+        .service-category-btn:hover {
+            border-color: #006837;
+            color: #006837;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 104, 55, 0.15);
+        }
+
+        .service-category-btn.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: var(--text-on-primary);
+        }
+
+        .service-category-btn i {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .service-category-btn span {
+            font-weight: 600;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .search-filters {
+            background: var(--bg-surface);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-bar {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-bar i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 15px 15px 15px 45px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+            border-color: #006837;
+        }
+
+        .filters-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .filter-select,
+        .filter-input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .filter-select:focus,
+        .filter-input:focus {
+            outline: none;
+            border-color: #006837;
+        }
+
+        .services-section {
+            margin-bottom: 40px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .section-header h2 {
+            margin: 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .results-count {
+            background: #e8f5e9;
+            color: #006837;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .service-card {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .service-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        .service-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: var(--text-on-primary);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .service-icon {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 24px;
+        }
+
+        .service-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .service-info {
+            padding: 20px;
+        }
+
+        .service-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .service-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .detail-item i {
+            width: 16px;
+            color: #006837;
+        }
+
+        .service-price {
+            font-size: 24px;
+            font-weight: bold;
+            color: #006837;
+            margin-bottom: 15px;
+        }
+
+        .service-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .service-provider {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .service-rating {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .service-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--text-on-primary);
+        }
+
+        .btn-primary:hover {
+            background: #004d29;
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: var(--bg-surface);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: var(--text-on-primary);
+        }
+
+        .featured-services {
+            background: var(--bg-surface);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .featured-services h2 {
+            margin: 0 0 25px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .featured-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .featured-card {
+            background: linear-gradient(135deg, #f8f9fa, #e8f5e9);
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #006837;
+            text-align: center;
+        }
+
+        .featured-icon {
+            width: 50px;
+            height: 50px;
+            background: #006837;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 20px;
+            color: var(--text-on-primary);
+        }
+
+        .featured-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .featured-description {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .why-choose {
+            margin-top: 50px;
+        }
+
+        .why-choose h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+        }
+
+        .benefit-card {
+            background: var(--bg-surface);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .benefit-icon {
+            width: 60px;
+            height: 60px;
+            background: #e8f5e9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 24px;
+            color: #006837;
+        }
+
+        .benefit-card h3 {
+            margin: 0 0 15px;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .benefit-card p {
+            margin: 0;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .no-results {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .no-results i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .no-results h3 {
+            margin: 0 0 10px;
+            color: #333;
+        }
+
+        .load-more-section {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .categories-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .filters-row {
+                grid-template-columns: 1fr;
+            }
+
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .featured-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .benefits-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</body>
+
+</html>

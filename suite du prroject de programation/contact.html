@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact - Sénégal Élevage</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <header class="header">
+        <div class="container">
+            <nav class="navbar">
+                <a href="index.html" class="logo">
+                    <i class="fas fa-cow"></i>
+                    <span>Sénégal<span class="highlight">Élevage</span></span>
+                </a>
+                <div class="nav-links">
+                    <a href="index.html"><i class="fas fa-home"></i> Accueil</a>
+                    <a href="materiel.html"><i class="fas fa-tools"></i> Matériel</a>
+                    <a href="betail.html"><i class="fas fa-cow"></i> Bétail</a>
+                    <a href="services.html"><i class="fas fa-handshake"></i> Services</a>
+                    <a href="publier-annonce.html"><i class="fas fa-plus-circle"></i> Créer une annonce</a>
+                    <a href="annonces.html"><i class="fas fa-bullhorn"></i> Annonces</a>
+                    <a href="authentification.html"><i class="fas fa-user"></i> Mon Compte</a>
+                    <a href="contact.html" class="active"><i class="fas fa-envelope"></i> Contact</a>
+                </div>
+                <div class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1><i class="fas fa-envelope"></i> Contact</h1>
+            <p>Une question ? Une suggestion ? Contactez-nous !</p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="contact-main">
+        <div class="container">
+            <div class="contact-layout">
+                <!-- Contact Form -->
+                <div class="contact-form-section">
+                    <div class="contact-header">
+                        <h2><i class="fas fa-paper-plane"></i> Envoyez-nous un message</h2>
+                        <p>Nous répondons généralement sous 24h</p>
+                    </div>
+
+                    <form id="contact-form" class="contact-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="name">
+                                    <i class="fas fa-user"></i> Nom complet
+                                </label>
+                                <input type="text" id="name" name="name" required placeholder="Votre nom et prénom">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="email">
+                                    <i class="fas fa-envelope"></i> Adresse email
+                                </label>
+                                <input type="email" id="email" name="email" required
+                                    placeholder="votre.email@exemple.com">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="phone">
+                                <i class="fas fa-phone"></i> Numéro de téléphone
+                            </label>
+                            <input type="tel" id="phone" name="phone" required placeholder="+221 77 123 45 67">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="subject">
+                                <i class="fas fa-tag"></i> Sujet
+                            </label>
+                            <select id="subject" name="subject" required>
+                                <option value="">Sélectionnez un sujet</option>
+                                <option value="support">Support technique</option>
+                                <option value="commercial">Commercial</option>
+                                <option value="partnership">Partenariat</option>
+                                <option value="complaint">Réclamation</option>
+                                <option value="suggestion">Suggestion</option>
+                                <option value="other">Autre</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="message">
+                                <i class="fas fa-comment"></i> Message
+                            </label>
+                            <textarea id="message" name="message" rows="6" required
+                                placeholder="Décrivez votre demande en détail..."></textarea>
+                            <div class="char-count">
+                                <span id="char-count">0</span> / 500 caractères
+                            </div>
+                        </div>
+
+                        <div class="form-options">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="copy-me">
+                                <span class="checkmark"></span>
+                                Envoyer une copie à mon adresse email
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-full">
+                            <i class="fas fa-paper-plane"></i>
+                            Envoyer le message
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Contact Information -->
+                <div class="contact-info-section">
+                    <div class="contact-info-card">
+                        <h3><i class="fas fa-map-marker-alt"></i> Adresse</h3>
+                        <div class="info-content">
+                            <p><strong>Sénégal Élevage</strong></p>
+                            <p>Plateau, Dakar</p>
+                            <p>Sénégal</p>
+                        </div>
+                    </div>
+
+                    <div class="contact-info-card">
+                        <h3><i class="fas fa-phone"></i> Téléphone & WhatsApp</h3>
+                        <div class="info-content">
+                            <p><strong>Service client:</strong></p>
+                            <p><a href="tel:+221787753044" style="color: var(--primary); text-decoration: none;">+221 78
+                                    775 30 44</a></p>
+                            <p><small>Lun-Ven: 8h-18h</small></p>
+
+                            <!-- Bouton WhatsApp -->
+                            <div style="margin-top: 10px;">
+                                <a href="https://wa.me/221787753044?text=Bonjour%20Sénégal%20Élevage%2C%20j'aimerais%20discuter%20d'un%20sujet"
+                                    target="_blank"
+                                    style="display: inline-flex; align-items: center; gap: 8px; background-color: #25D366; color: var(--text-on-primary); padding: 8px 12px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.9rem; transition: all 0.3s ease;"
+                                    onmouseover="this.style.backgroundColor='#1eaa51'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'"
+                                    onmouseout="this.style.backgroundColor='#25D366'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                                    <i class="fab fa-whatsapp"></i>
+                                    <span>Nous contacter sur WhatsApp</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="contact-info-card">
+                        <h3><i class="fas fa-envelope"></i> Email</h3>
+                        <div class="info-content">
+                            <p><strong>Support:</strong></p>
+                            <p>support@senegal-elevage.sn</p>
+                            <p><strong>Commercial:</strong></p>
+                            <p>commercial@senegal-elevage.sn</p>
+                        </div>
+                    </div>
+
+                    <div class="contact-info-card">
+                        <h3><i class="fas fa-clock"></i> Horaires</h3>
+                        <div class="info-content">
+                            <p><strong>Lundi - Vendredi:</strong></p>
+                            <p>8h00 - 18h00</p>
+                            <p><strong>Samedi:</strong></p>
+                            <p>9h00 - 14h00</p>
+                            <p><strong>Dimanche:</strong></p>
+                            <p>Fermé</p>
+                        </div>
+                    </div>
+
+                    <div class="contact-info-card">
+                        <h3><i class="fas fa-share-alt"></i> Réseaux sociaux</h3>
+                        <div class="info-content">
+                            <div class="social-links">
+                                <a href="https://facebook.com" target="_blank" class="social-link">
+                                    <i class="fab fa-facebook"></i>
+                                </a>
+                                <a href="https://twitter.com" target="_blank" class="social-link">
+                                    <i class="fab fa-twitter"></i>
+                                </a>
+                                <a href="https://instagram.com" target="_blank" class="social-link">
+                                    <i class="fab fa-instagram"></i>
+                                </a>
+                                <a href="https://wa.me" target="_blank" class="social-link">
+                                    <i class="fab fa-whatsapp"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FAQ Section -->
+            <section class="faq-section">
+                <h2><i class="fas fa-question-circle"></i> Questions fréquentes</h2>
+
+                <div class="faq-grid">
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            <h4>Comment créer une annonce ?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Pour créer une annonce, cliquez sur le bouton "Créer une annonce" dans le menu,
+                                remplissez le formulaire avec les informations de votre produit ou service, ajoutez des
+                                photos et publiez. C'est gratuit !</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            <h4>Est-ce gratuit de publier une annonce ?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Oui, la publication d'annonces est totalement gratuite. Vous pouvez publier autant
+                                d'annonces que vous le souhaitez sans aucun frais.</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            <h4>Comment contacter un vendeur ?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Chaque annonce dispose d'un bouton "Contacter le vendeur". Vous pouvez utiliser ce
+                                formulaire pour envoyer un message directement au vendeur, ou utiliser les coordonnées
+                                affichées dans l'annonce.</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            <h4>Quels types d'animaux peut-on vendre ?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Vous pouvez vendre toutes sortes d'animaux d'élevage : volailles (poules, canards,
+                                dindes), bovins (vaches, taureaux), ovins (moutons, chèvres), porcins, et bien d'autres.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            <h4>Comment garantir la sécurité des transactions ?</h4>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Nous recommandons de toujours rencontrer les vendeurs en personne, de vérifier les
+                                animaux avant d'acheter, et d'utiliser des moyens de paiement sécurisés. Signalez toute
+                                activité suspecte.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Sénégal Élevage</h3>
+                    <p>La plateforme de référence pour tous les éleveurs sénégalais</p>
+                </div>
+
+                <div class="footer-section">
+                    <h3>Liens rapides</h3>
+                    <ul>
+                        <li><a href="annonces.html">Toutes les annonces</a></li>
+                        <li><a href="publier-annonce.html">Créer une annonce</a></li>
+                        <li><a href="compte.html">Mon compte</a></li>
+                        <li><a href="mentions-legales.html">Mentions légales</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h3>Support</h3>
+                    <ul>
+                        <li><a href="contact.html" class="active">Contact</a></li>
+                        <li><a href="contact.html#faq">Aide</a></li>
+                        <li><a href="contact.html#faq">FAQ</a></li>
+                        <li><a href="contact.html#abus">Signaler un abus</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2025 Sénégal Élevage. Tous droits réservés.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/supabase-config.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="js/contact.js"></script>
+
+    <style>
+        /* Styles spécifiques à la page contact */
+        .contact-main {
+            padding: 40px 0;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e8f5e9 100%);
+        }
+
+        .contact-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .contact-form-section {
+            background: var(--bg-surface);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .contact-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .contact-header h2 {
+            margin: 0 0 10px;
+            color: #333;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .contact-header p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .contact-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #006837;
+            box-shadow: 0 0 0 3px rgba(0, 104, 55, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .char-count {
+            text-align: right;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .form-options {
+            margin: 10px 0;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            display: none;
+        }
+
+        .checkmark {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .checkbox-label input:checked+.checkmark {
+            background: #006837;
+            border-color: #006837;
+        }
+
+        .checkbox-label input:checked+.checkmark::after {
+            content: '✓';
+            color: var(--text-on-primary);
+            font-size: 12px;
+        }
+
+        .btn-full {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .contact-info-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .contact-info-card {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .contact-info-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .contact-info-card h3 {
+            margin: 0 0 15px;
+            color: #006837;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-content p {
+            margin: 5px 0;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .info-content strong {
+            color: #333;
+        }
+
+        .info-content small {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .social-link {
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            color: var(--text-on-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .social-link:hover {
+            background: #004d29;
+            transform: scale(1.1);
+        }
+
+        .faq-section {
+            margin-top: 60px;
+            background: var(--bg-surface);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .faq-section h2 {
+            margin: 0 0 30px;
+            color: #333;
+            font-size: 28px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .faq-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .faq-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .faq-question {
+            padding: 20px;
+            background: #f8f9fa;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s ease;
+        }
+
+        .faq-question:hover {
+            background: #e8f5e9;
+        }
+
+        .faq-question h4 {
+            margin: 0;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .faq-question i {
+            color: #006837;
+            transition: transform 0.3s ease;
+        }
+
+        .faq-item.active .faq-question i {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            padding: 20px;
+            background: var(--bg-surface);
+            border-top: 1px solid var(--gray-light);
+            display: none;
+        }
+
+        .faq-item.active .faq-answer {
+            display: block;
+        }
+
+        .faq-answer p {
+            margin: 0;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .contact-layout {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .contact-form-section {
+                padding: 30px 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .contact-info-card {
+                padding: 20px;
+            }
+
+            .faq-section {
+                padding: 30px 20px;
+            }
+
+            .faq-question {
+                padding: 15px;
+            }
+
+            .faq-answer {
+                padding: 15px;
+            }
+        }
+    </style>
+</body>
+
+</html>

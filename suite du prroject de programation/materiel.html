@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matériel d'élevage - Plateforme Sénégal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- En-tête avec navigation -->
+    <header class="header">
+        <div class="container">
+            <nav class="navbar">
+                <a href="index.html" class="logo">
+                    <i class="fas fa-cow"></i>
+                    <span>Sénégal<span class="highlight">Élevage</span></span>
+                </a>
+                <div class="nav-links">
+                    <a href="index.html"><i class="fas fa-home"></i> Accueil</a>
+                    <a href="materiel.html" class="active"><i class="fas fa-tools"></i> Matériel</a>
+                    <a href="betail.html"><i class="fas fa-cow"></i> Bétail</a>
+                    <a href="services.html"><i class="fas fa-handshake"></i> Services</a>
+                    <a href="publier-annonce.html"><i class="fas fa-plus-circle"></i> Créer une annonce</a>
+                    <a href="annonces.html"><i class="fas fa-bullhorn"></i> Annonces</a>
+                    <a href="authentification.html"><i class="fas fa-user"></i> Mon Compte</a>
+                    <a href="contact.html"><i class="fas fa-envelope"></i> Contact</a>
+                </div>
+                <div class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Bannière principale -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>Matériel d'élevage professionnel</h1>
+                <p>Tout l'équipement nécessaire pour votre élevage au Sénégal - Achat, location et vente</p>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="stat-number">150+</span>
+                        <span class="stat-label">Équipements</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">40+</span>
+                        <span class="stat-label">Fournisseurs</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">12</span>
+                        <span class="stat-label">Régions couvertes</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Video Section Full Width -->
+    <section class="video-section">
+        <div class="video-container">
+            <video autoplay loop muted playsinline class="hero-video">
+                <source src="assets/images/vidéo.mp4" type="video/mp4">
+            </video>
+            <div class="video-overlay">
+                <div class="video-content">
+                    <h2>Équipements de Qualité pour l'Élevage Moderne</h2>
+                    <p>Découvrez notre sélection de matériel professionnel pour optimiser votre production</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Matériel en Vedette -->
+    <section class="featured-material">
+        <div class="container">
+            <h2 class="section-title">Matériel en Vedette</h2>
+            <p class="section-subtitle">Les équipements les plus populaires pour les éleveurs sénégalais</p>
+
+            <div class="listing-cards-container">
+                <!-- Matériel Card 1 -->
+                <div class="listing-card">
+                    <img src="assets/images/abreuvoir_automatique.jpg" onerror="this.src='placeholder.svg'"
+                        alt="Abreuvoir automatique" class="listing-image">
+                    <div class="listing-content">
+                        <div class="listing-title">Abreuvoir Automatique Premium</div>
+                        <div class="listing-description">Système d'abreuvement automatique de 500L avec flotteur, idéal
+                            pour 15-20 têtes. Construction en inox résistant.</div>
+                        <div class="listing-meta">📍 Dakar</div>
+                        <div class="listing-tags">
+                            <span class="tag tag-type Matériel">Bovin</span>
+                            <span class="tag tag-status Disponible">Stock</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Matériel Card 2 -->
+                <div class="listing-card">
+                    <img src="assets/images/cloture.jpg" onerror="this.src='placeholder.svg'" alt="Clôture électrique"
+                        class="listing-image">
+                    <div class="listing-content">
+                        <div class="listing-title">Kit de Clôture Électrique</div>
+                        <div class="listing-description">Kit complet pour 100m de clôture électrique avec energizer et
+                            accessoires. Sécurité garantie.</div>
+                        <div class="listing-meta">📍 Thiès</div>
+
+                        <div class="listing-tags">
+                            <span class="tag tag-type Matériel">Clôture</span>
+                            <span class="tag tag-status Disponible">Stock</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Matériel Card 3 -->
+                <div class="listing-card">
+                    <img src="assets/images/mangeoir_pour_bovin.jpg" onerror="this.src='placeholder.svg'"
+                        alt="Mangeoire bovin" class="listing-image">
+                    <div class="listing-content">
+                        <div class="listing-title">Mangeoire Double Bovin</div>
+                        <div class="listing-description">Mangeoire en acier galvanisé pour 2 animaux, avec protection
+                            anti-gaspillage. Facile à nettoyer.</div>
+                        <div class="listing-meta">📍 Kaolack</div>
+                        <div class="listing-tags">
+                            <span class="tag tag-type Matériel">Bovin</span>
+                            <span class="tag tag-status Disponible">Stock</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Matériel Card 4 -->
+                <div class="listing-card">
+                    <img src="assets/images/abreuvoir_avec_pipette.jpg" onerror="this.src='placeholder.svg'"
+                        alt="Abreuvoir pipettes" class="listing-image">
+                    <div class="listing-content">
+                        <div class="listing-title">Abreuvoir à Pipettes Avicole</div>
+                        <div class="listing-description">Système de 10 pipettes avec réservoir de 20L, eau toujours
+                            propre. Idéal pour 50-100 poules.</div>
+                        <div class="listing-meta">📍 Saint-Louis</div>
+                        <div class="listing-tags">
+                            <span class="tag tag-type Matériel">Avicole</span>
+                            <span class="tag tag-status Disponible">Stock</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Matériel Card 5 -->
+                <div class="listing-card">
+                    <img src="assets/images/Aliments concentrés pour bétail.jpg" onerror="this.src='placeholder.svg'"
+                        alt="Aliments concentrés" class="listing-image">
+                    <div class="listing-content">
+                        <div class="listing-title">Concentré Premium Bétail</div>
+                        <div class="listing-description">Sac de 50kg de concentré de haute qualité, enrichi en vitamines
+                            et minéraux essentiels.</div>
+                        <div class="listing-meta">📍 Fatick</div>
+                        <div class="listing-tags">
+                            <span class="tag tag-type Aliment">Nutrition</span>
+                            <span class="tag tag-status Quotidien">Stock</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Matériel Card 6 -->
+                <div class="listing-card">
+                    <img src="assets/images/Services vétérinaires mobile.jpg" onerror="this.src='placeholder.svg'"
+                        alt="Kit vétérinaire" class="listing-image">
+                    <div class="listing-content">
+                        <div class="listing-title">Kit de Vaccination Complet</div>
+                        <div class="listing-description">Kit complet avec seringues, aiguilles, stérilisateur et boîte
+                            de transport. Professionnel.</div>
+                        <div class="listing-meta">📍 Louga</div>
+                        <div class="listing-tags">
+                            <span class="tag tag-type Service">Vétérinaire</span>
+                            <span class="tag tag-status Disponible">Stock</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section principale -->
+    <main class="container main-container">
+        <!-- Filtres par catégorie -->
+        <section class="filters-section">
+            <h2><i class="fas fa-filter"></i> Catégories de matériel</h2>
+            <div class="filters">
+                <button class="filter-btn active" data-category="all">Tous les équipements</button>
+                <button class="filter-btn" data-category="bovin"><i class="fas fa-cow"></i> Bovin</button>
+                <button class="filter-btn" data-category="ovin"><i class="fas fa-sheep"></i> Ovin/Caprin</button>
+                <button class="filter-btn" data-category="avicole"><i class="fas fa-kiwi-bird"></i> Avicole</button>
+                <button class="filter-btn" data-category="veterinaire"><i class="fas fa-syringe"></i>
+                    Vétérinaire</button>
+                <button class="filter-btn" data-category="alimentation"><i class="fas fa-wheat-awn"></i>
+                    Alimentation</button>
+                <button class="filter-btn" data-category="cloture"><i class="fas fa-fence"></i> Clôtures</button>
+            </div>
+
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-input"
+                    placeholder="Rechercher un équipement (ex: abreuvoir, mangeoire...)">
+            </div>
+        </section>
+
+        <!-- Grille de produits -->
+        <section class="products-section">
+            <h2><i class="fas fa-tools"></i> Équipements disponibles</h2>
+            <p class="section-subtitle">Trouvez le matériel adapté à votre élevage</p>
+
+            <div class="products-grid" id="products-container">
+                <!-- Les produits seront générés dynamiquement avec JavaScript -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal de contact/commande -->
+    <div class="modal" id="contact-modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 id="modal-title">Contacter le vendeur</h2>
+            <div class="modal-product-info">
+                <img id="modal-product-image" src="" alt="">
+                <div>
+                    <h3 id="modal-product-name"></h3>
+                    <p id="modal-product-price"></p>
+                    <p id="modal-product-category"></p>
+                </div>
+            </div>
+
+            <form id="contact-form">
+                <div class="form-group">
+                    <label for="user-name">Votre nom complet</label>
+                    <input type="text" id="user-name" required placeholder="Ex: Mamadou Diop">
+                </div>
+
+                <div class="form-group">
+                    <label for="user-phone">Numéro de téléphone</label>
+                    <input type="tel" id="user-phone" required placeholder="Ex: 77 123 45 67">
+                </div>
+
+                <div class="form-group">
+                    <label for="user-region">Votre région</label>
+                    <select id="user-region" required>
+                        <option value="">Sélectionnez votre région</option>
+                        <option value="Dakar">Dakar</option>
+                        <option value="Thiès">Thiès</option>
+                        <option value="Diourbel">Diourbel</option>
+                        <option value="Saint-Louis">Saint-Louis</option>
+                        <option value="Tambacounda">Tambacounda</option>
+                        <option value="Kaolack">Kaolack</option>
+                        <option value="Kolda">Kolda</option>
+                        <option value="Ziguinchor">Ziguinchor</option>
+                        <option value="Louga">Louga</option>
+                        <option value="Fatick">Fatick</option>
+                        <option value="Kaffrine">Kaffrine</option>
+                        <option value="Kédougou">Kédougou</option>
+                        <option value="Sédhiou">Sédhiou</option>
+                        <option value="Matam">Matam</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="message-type">Type de demande</label>
+                    <select id="message-type" required>
+                        <option value="">Sélectionnez</option>
+                        <option value="achat">Acheter le matériel</option>
+                        <option value="location">Louer le matériel</option>
+                        <option value="devis">Demander un devis</option>
+                        <option value="info">Plus d'informations</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="user-message">Message additionnel</label>
+                    <textarea id="user-message" rows="4"
+                        placeholder="Précisez votre demande (quantité, délai, etc.)"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-submit">
+                        <i class="fas fa-paper-plane"></i> Envoyer la demande
+                    </button>
+                    <button type="button" class="btn-cancel close-modal">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pied de page -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>ÉlevageSénégal</h3>
+                    <p>Plateforme de digitalisation de l'élevage au Sénégal, connectant éleveurs, acheteurs et
+                        fournisseurs de matériel.</p>
+                    <div class="social-links">
+                        <a href="https://wa.me" target="_blank"><i class="fab fa-whatsapp"></i></a>
+                        <a href="https://facebook.com" target="_blank"><i class="fab fa-facebook"></i></a>
+                        <a href="https://twitter.com" target="_blank"><i class="fab fa-twitter"></i></a>
+                    </div>
+                </div>
+
+                <div class="footer-section">
+                    <h3>Contacts</h3>
+                    <p><i class="fas fa-phone"></i> Service client : 33 800 00 00</p>
+                    <p><i class="fas fa-envelope"></i> contact@elevagesenegal.sn</p>
+                    <p><i class="fas fa-map-marker-alt"></i> Dakar, Sicap Liberté II</p>
+                </div>
+
+                <div class="footer-section">
+                    <h3>Langues</h3>
+                    <div class="language-selector">
+                        <button class="lang-btn active">Français</button>
+                        <button class="lang-btn">Wolof</button>
+                        <button class="lang-btn">Pulaar</button>
+                    </div>
+                    <p class="footer-note">Disponible dans toutes les régions du Sénégal</p>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2023 ÉlevageSénégal - Tous droits réservés</p>
+                <p>Conçu pour les éleveurs sénégalais</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/supabase-config.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="js/materiel.js"></script>
+</body>
+
+</html>

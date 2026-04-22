@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Sénégal Élevage — plateforme pour acheter et vendre matériel, animaux et produits d'élevage au Sénégal.">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+
+
+
+
+    <title>Sénégal Élevage - Plateforme d'Élevage</title>
+
+</head>
+
+<body>
+    <!-- En-tête avec navigation -->
+    <header class="header">
+        <div class="container">
+            <nav class="navbar">
+                <a href="index.html" class="logo">
+                    <i class="fas fa-cow"></i>
+                    <span>Sénégal<span class="logo-senegal"></span>Élevage</span>
+                </a>
+                <div class="nav-links">
+                    <a href="index.html" class="active"><i class="fas fa-home"></i> Accueil</a>
+                    <a href="materiel.html"><i class="fas fa-tools"></i> Matériel</a>
+                    <a href="betail.html"><i class="fas fa-cow"></i> Bétail</a>
+                    <a href="services.html"><i class="fas fa-handshake"></i> Services</a>
+                    <a href="publier-annonce.html"><i class="fas fa-box"></i> Créer une annonce</a>
+                    <a href="annonces.html"><i class="fas fa-bullhorn"></i>Annonces</a>
+                    <a href="authentification.html"><i class="fas fa-user-plus"></i> Inscription</a>
+                    <a href="authentification.html"><i class="fas fa-sign-in-alt"></i> Connexion</a>
+                    <a href="contact.html"><i class="fas fa-envelope"></i> Contact</a>
+                    <a href="compte.html"><i class="fas fa-user-circle"></i> Mon compte</a>
+                </div>
+                <div class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div>
+                    <h1>Bienvenue sur <span class="highlight">Sénégal Élevage</span></h1>
+                    <p>La plateforme innovante dédiée à tous les éleveurs sénégalais. Vendez, achetez et échangez du
+                        matériel d'élevage, des animaux et des produits issus de l'élevage en toute sécurité.</p>
+                    <div class="hero-buttons">
+                        <a href="annonces.html" class="btn btn-primary">Parcourir les annonces →</a>
+                        <a href="publier-annonce.html" class="btn btn-outline">Créer une annonce</a>
+                    </div>
+                </div>
+                <div class="hero-grid">
+                    <div class="card">
+                        <div class="card-icon">🔧</div>
+                        <div class="card-title">Matériel</div>
+                        <div class="card-description">Abreuvoirs, cages, équipements et outils</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">🐑🐐🐓🐇</div>
+                        <div class="card-title">Animaux</div>
+                        <div class="card-description">Bovins, ovins, caprins, volailles, poissons</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-icon">📦</div>
+                        <div class="card-title">Produits</div>
+                        <div class="card-description">Lait, œufs, viande, cuir et autres</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">🌍</div>
+                        <div class="card-title">Partout</div>
+                        <div class="card-description">À travers tout le Sénégal</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="container">
+            <h2>Pourquoi Sénégal Élevage ?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">👥</div>
+                    <div class="feature-title">Communauté</div>
+                    <div class="feature-subtitle">Connectez-vous avec d'autres éleveurs</div>
+                    <div class="feature-description">Rejoignez une communauté croissante d'éleveurs sénégalais
+                        partageant les mêmes objectifs.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <div class="feature-title">Sécurité</div>
+                    <div class="feature-subtitle">Plateforme sécurisée et fiable</div>
+                    <div class="feature-description">Transactions sécurisées et vérification des utilisateurs pour votre
+                        tranquillité d'esprit.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌍</div>
+                    <div class="feature-title">Portée</div>
+                    <div class="feature-subtitle">Accès à un marché plus large</div>
+                    <div class="feature-description">Atteignez des clients et des partenaires à travers tout le Sénégal
+                        facilement.</div>
+                </div>
+            </div>
+        </div>
+        <div></div>
+    </section>
+
+    <!-- Video Section Full Width -->
+    <section class="video-section">
+        <div class="video-container">
+            <video autoplay loop muted playsinline class="hero-video">
+                <source src="assets/images/vidéo.mp4" type="video/mp4">
+            </video>
+            <div class="video-overlay">
+                <div class="video-content">
+                    <h2>Découvrez l'excellence de l'élevage sénégalais</h2>
+                    <p>Rejoignez des milliers d'éleveurs professionnels</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="container">
+            <h2>Prêt à commencer ?</h2>
+            <p>Créez votre compte et publiez votre première annonce dès aujourd'hui</p>
+            <a href="authentification.html" class="btn">creer un compte </a>
+        </div>
+    </section>
+
+
+    <div class="listing-cards-container">
+        <!-- Listing Card 1 - Matériel -->
+        <div class="listing-card">
+            <img src="assets/images/abreuvoir_automatique.jpg" onerror="this.src='placeholder.svg'"
+                alt="Abreuvoir automatique" class="listing-image">
+            <div class="listing-content">
+                <div class="listing-title">Abreuvoir Automatique Moderne</div>
+                <div class="listing-description">Système d'abreuvement automatique de haute qualité, idéal pour les
+                    élevages de bovins et ovins. Capacité 500L avec installation facile.</div>
+                <div class="listing-meta">📍 Dakar</div>
+                <div class="listing-tags">
+                    <span class="tag tag-type">Matériel</span>
+                    <span class="tag tag-status">Disponible</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listing Card 2 - Volaille -->
+        <div class="listing-card">
+            <img src="assets/images/Poules pondeuses.jpg" onerror="this.src='placeholder.svg'" alt="Poules pondeuses"
+                class="listing-image">
+            <div class="listing-content">
+                <div class="listing-title">Lot de 100 Poules Pondeuses</div>
+                <div class="listing-description">Poules pondeuses ISA Brown de 18 semaines, très productives. En pleine
+                    forme de ponte avec certificat sanitaire.</div>
+                <div class="listing-meta">📍 Kaolack</div>
+
+                <div class="listing-tags">
+                    <span class="tag tag-type">Volaille</span>
+                    <span class="tag tag-status">Actif</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listing Card 3 - Bétail -->
+        <div class="listing-card">
+            <img src="assets/images/Lot de 10 brebis Djallonké.jpg" onerror="this.src='placeholder.svg'"
+                alt="Brebis Djallonké" class="listing-image">
+            <div class="listing-content">
+                <div class="listing-title">Lot de 10 Brebis </div>
+                <div class="listing-description">Brebis Djallonké de 2 ans, excellentes pour la reproduction. En bonne
+                    santé, déjà vaccinées et prêtes pour l'élevage.</div>
+                <div class="listing-meta">📍 Saint-Louis</div>
+                <div class="listing-tags">
+                    <span class="tag tag-type">Bétail</span>
+                    <span class="tag tag-status">Actif</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listing Card 4 - Produits -->
+        <div class="listing-card">
+            <img src="assets/images/Lait fermier biologique.jpg" onerror="this.src='placeholder.svg'"
+                alt="Lait biologique" class="listing-image">
+            <div class="listing-content">
+                <div class="listing-title">Lait Fermier Biologique</div>
+                <div class="listing-description">Lait frais biologique de vache, produit quotidien. Certifié AB et
+                    disponible en quantités personnalisées.</div>
+                <div class="listing-meta">📍 Fatick</div>
+                <div class="listing-tags">
+                    <span class="tag tag-type">Produit</span>
+                    <span class="tag tag-status">Quotidien</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listing Card 5 - Services -->
+        <div class="listing-card">
+            <img src="assets/images/Services vétérinaires mobile.jpg" onerror="this.src='placeholder.svg'"
+                alt="Services vétérinaires" class="listing-image">
+            <div class="listing-content">
+                <div class="listing-title">Service Vétérinaire Mobile</div>
+                <div class="listing-description">Consultations vétérinaires à domicile, vaccination, traitement et suivi
+                    sanitaire pour tous types d'élevages.</div>
+                <div class="listing-meta">📍 Thiès</div>
+                <div class="listing-tags">
+                    <span class="tag tag-type">Service</span>
+                    <span class="tag tag-status">Disponible</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listing Card 6 - Aliments -->
+        <div class="listing-card">
+            <img src="assets/images/Aliments concentrés pour bétail.jpg" onerror="this.src='placeholder.svg'"
+                alt="Aliments pour bétail" class="listing-image">
+            <div class="listing-content">
+                <div class="listing-title">Aliments Concentrés Premium</div>
+                <div class="listing-description">Aliment concentré de haute qualité pour bovins et ovins. Formulé par
+                    des nutritionnistes experts.</div>
+                <div class="listing-meta">📍 Louga</div>
+                <div class="listing-tags">
+                    <span class="tag tag-type">Aliment</span>
+                    <span class="tag tag-status">Stock</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>À propos</h3>
+                    <p>Sénégal Élevage est une plateforme innovante dédiée au développement du secteur de l'élevage au
+                        Sénégal.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Catégories</h3>
+                    <ul>
+                        <li><a href="materiel.html">Matériel</a></li>
+
+                        <li><a href="betail.html">Animaux</a></li>
+                        <li><a href="annonces.html">Produits</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h3>Aide</h3>
+                    <ul>
+                        <li><a href="contact.html">FAQ</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                        <li><a href="mentions-legales.html">Conditions</a></li>
+                </div>
+                <div class="footer-section">
+                    <h3>Contact</h3>
+                    <p>Email: info@senegal-elevage.sn</p>
+                    <p>Téléphone: +221 76 464 45 97</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Sénégal Élevage. Tous droits réservés.</p>
+            </div>
+        </div>
+    </footer>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/index.js"></script>
+</body>
+
+</html>

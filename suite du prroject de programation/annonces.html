@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Annonces Sénégal Élevage — parcourez les annonces pour matériel, animaux et produits d'élevage."
+    />
+    <title>Annonces — Sénégal Élevage</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml" />
+  </head>
+
+  <body>
+    <!-- Navigation -->
+    <header class="header">
+      <div class="container">
+        <nav class="navbar">
+          <a href="index.html" class="logo">
+            <i class="fas fa-cow"></i>
+            <span>Sénégal<span class="highlight">Élevage</span></span>
+          </a>
+          <div class="nav-links">
+            <a href="index.html"><i class="fas fa-home"></i> Accueil</a>
+            <a href="materiel.html"><i class="fas fa-tools"></i> Matériel</a>
+            <a href="betail.html"><i class="fas fa-cow"></i> Bétail</a>
+            <a href="services.html"
+              ><i class="fas fa-handshake"></i> Services</a
+            >
+            <a href="publier-annonce.html"
+              ><i class="fas fa-plus-circle"></i> Créer une annonce</a
+            >
+            <a href="annonces.html" class="active"
+              ><i class="fas fa-bullhorn"></i> Annonces</a
+            >
+            <a href="authentification.html"
+              ><i class="fas fa-user"></i> Mon Compte</a
+            >
+            <a href="contact.html"><i class="fas fa-envelope"></i> Contact</a>
+          </div>
+          <div class="mobile-menu-btn">
+            <i class="fas fa-bars"></i>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Page Header -->
+    <section class="annonces-hero">
+      <div class="container">
+        <div class="annonces-hero-content">
+          <h1><i class="fas fa-bullhorn"></i> Les Annonces</h1>
+          <p>
+            Découvrez les meilleures offres en matériel, animaux et produits
+            d'élevage
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="annonces-main">
+      <div class="container">
+        <!-- Search & Filters -->
+        <section class="annonces-filters">
+          <div class="annonces-search-bar">
+            <i class="fas fa-search"></i>
+            <input
+              type="search"
+              class="search-input"
+              id="search-input"
+              placeholder="Rechercher une annonce (titre, région, type...)"
+            />
+          </div>
+
+          <div class="annonces-filter-row">
+            <div class="filter-group">
+              <label><i class="fas fa-tag"></i> Type</label>
+              <select class="filter-select" data-filter="type" id="filter-type">
+                <option value="">Tous les types</option>
+                <option value="materiel">Matériel</option>
+                <option value="animaux">Animaux</option>
+                <option value="produits">Produits</option>
+                <option value="services">Services</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label><i class="fas fa-map-marker-alt"></i> Région</label>
+              <select
+                class="filter-select"
+                data-filter="region"
+                id="filter-region"
+              >
+                <option value="">Toutes les régions</option>
+                <option value="dakar">Dakar</option>
+                <option value="diourbel">Diourbel</option>
+                <option value="fatick">Fatick</option>
+                <option value="kaffrine">Kaffrine</option>
+                <option value="kaolack">Kaolack</option>
+                <option value="kedougou">Kédougou</option>
+                <option value="kolda">Kolda</option>
+                <option value="louga">Louga</option>
+                <option value="matam">Matam</option>
+                <option value="mbake">Mbacké</option>
+                <option value="sedhiou">Sédhiou</option>
+                <option value="saintlouis">Saint-Louis</option>
+                <option value="tambacounda">Tambacounda</option>
+                <option value="thies">Thiès</option>
+                <option value="ziguinchor">Ziguinchor</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label><i class="fas fa-sort"></i> Tri</label>
+              <select class="filter-select" data-filter="sort" id="filter-sort">
+                <option value="recent">Plus récent</option>
+                <option value="prix-asc">Prix (croissant)</option>
+                <option value="prix-desc">Prix (décroissant)</option>
+                <option value="populaire">Populaire</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- Results count -->
+        <div class="annonces-results-info">
+          <span id="results-count">Chargement des annonces...</span>
+        </div>
+
+        <!-- Listings Grid -->
+        <section class="listings-grid" id="listings-grid">
+          <!-- Les annonces seront remplies dynamiquement par JavaScript -->
+        </section>
+
+        <!-- Empty state -->
+        <div class="annonces-empty" id="empty-state" style="display: none">
+          <i class="fas fa-search"></i>
+          <h3>Aucune annonce trouvée</h3>
+          <p>Essayez de modifier vos filtres ou votre recherche</p>
+        </div>
+
+        <!-- Load more -->
+        <div class="load-more-section" id="load-more-section">
+          <button class="btn btn-primary btn-large" id="load-more-btn">
+            <i class="fas fa-plus"></i> Charger plus d'annonces
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- CTA Section -->
+    <section class="annonces-cta">
+      <div class="container">
+        <div class="annonces-cta-content">
+          <i class="fas fa-plus-circle"></i>
+          <h2>Vous avez un produit à vendre ?</h2>
+          <p>
+            Publiez votre annonce gratuitement et rejoignez notre communauté
+            d'éleveurs
+          </p>
+          <a href="publier-annonce.html" class="btn btn-primary btn-large">
+            <i class="fas fa-bullhorn"></i> Créer une annonce maintenant
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="container">
+        <div class="footer-content">
+          <div class="footer-section">
+            <h3>Sénégal Élevage</h3>
+            <p>
+              La plateforme de référence pour tous les éleveurs sénégalais.
+              Achetez, vendez et partagez en toute confiance.
+            </p>
+            <div class="contact">
+              <div><i class="fas fa-phone"></i> +221 76 464 45 97</div>
+              <div>
+                <i class="fas fa-envelope"></i> contact@senegalelevage.sn
+              </div>
+            </div>
+          </div>
+
+          <div class="footer-section">
+            <h3>Catégories</h3>
+            <ul>
+              <li><a href="materiel.html">Matériel</a></li>
+              <li><a href="betail.html">Animaux</a></li>
+              <li><a href="annonces.html">Annonces</a></li>
+              <li><a href="services.html">Services</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-section">
+            <h3>Ressources</h3>
+            <ul>
+              <li><a href="contact.html#faq">FAQ</a></li>
+              <li><a href="contact.html">Contact</a></li>
+              <li><a href="mentions-legales.html">Conditions</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-section">
+            <h3>Suivez-nous</h3>
+            <div class="social-links">
+              <a href="#"><i class="fab fa-facebook"></i></a>
+              <a href="#"><i class="fab fa-instagram"></i></a>
+              <a href="#"><i class="fab fa-whatsapp"></i></a>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <p>&copy; 2025 Sénégal Élevage. Tous droits réservés.</p>
+        </div>
+      </div>
+    </footer>
+
+    <script src="js/supabase-config.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="js/annonces.js"></script>
+
+    <style>
+      /* ============================================ */
+      /* ANNONCES PAGE STYLES                         */
+      /* ============================================ */
+
+      /* Page Header / Hero */
+      .annonces-hero {
+        background: linear-gradient(
+          135deg,
+          #1a1a1a 0%,
+          #2d2d2d 50%,
+          #1a1a1a 100%
+        );
+        padding: 3.5rem 0;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .annonces-hero::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(
+          circle at 30% 50%,
+          rgba(255, 215, 0, 0.08) 0%,
+          transparent 60%
+        );
+      }
+
+      .annonces-hero-content {
+        position: relative;
+        z-index: 1;
+      }
+
+      .annonces-hero h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--primary);
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+      }
+
+      .annonces-hero h1 i {
+        font-size: 2rem;
+      }
+
+      .annonces-hero p {
+        font-size: 1.1rem;
+        color: #b0b0b0;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      /* Main content area */
+      .annonces-main {
+        padding: 2.5rem 0 4rem;
+        background: #f5f5f5;
+        min-height: 60vh;
+      }
+
+      /* Filters */
+      .annonces-filters {
+        background: var(--bg-surface);
+        border-radius: 16px;
+        padding: 1.75rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+      }
+
+      .annonces-search-bar {
+        position: relative;
+        margin-bottom: 1.25rem;
+      }
+
+      .annonces-search-bar i {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #999;
+        font-size: 1.1rem;
+      }
+
+      .annonces-search-bar .search-input {
+        width: 100%;
+        padding: 14px 16px 14px 48px;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        font-size: 1rem;
+        background: #fafafa;
+        transition: all 0.3s ease;
+      }
+
+      .annonces-search-bar .search-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.1);
+      }
+
+      .annonces-filter-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+      }
+
+      .annonces-filters .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .annonces-filters .filter-group label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .annonces-filters .filter-group label i {
+        color: var(--primary);
+        font-size: 0.75rem;
+      }
+
+      .annonces-filters .filter-select {
+        padding: 10px 14px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        background: #fafafa;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='m8 11-5-5h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 32px;
+      }
+
+      .annonces-filters .filter-select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+      }
+
+      /* Results info */
+      .annonces-results-info {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        font-size: 0.95rem;
+        color: #666;
+      }
+
+      /* Listings grid */
+      .listings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+      }
+
+      /* Listing card */
+      .listing-card {
+        background: var(--bg-surface);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        transition:
+          transform 0.3s ease,
+          box-shadow 0.3s ease;
+        position: relative;
+        border: 1px solid rgba(0, 0, 0, 0.04);
+      }
+
+      .listing-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+      }
+
+      .listing-image {
+        width: 100%;
+        height: 220px;
+        object-fit: cover;
+        background: #e0e0e0;
+      }
+
+      .listing-content {
+        padding: 1.25rem;
+      }
+
+      .listing-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 0.5rem;
+        line-height: 1.3;
+      }
+
+      .listing-description {
+        font-size: 0.9rem;
+        color: #666;
+        line-height: 1.5;
+        margin-bottom: 0.75rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .listing-price {
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: var(--primary);
+        margin-bottom: 0.75rem;
+      }
+
+      .listing-meta {
+        font-size: 0.85rem;
+        color: #888;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .listing-tags {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+
+      .listing-tags .tag {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .listing-tags .tag-type {
+        background: rgba(255, 215, 0, 0.15);
+        color: #b8860b;
+      }
+
+      .listing-tags .tag-status {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+      }
+
+      .listing-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 0.75rem;
+        border-top: 1px solid #f0f0f0;
+      }
+
+      .listing-footer .btn {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+      }
+
+      /* Empty state */
+      .annonces-empty {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: var(--bg-surface);
+        border-radius: 16px;
+        margin: 2rem 0;
+      }
+
+      .annonces-empty i {
+        font-size: 3rem;
+        color: #ccc;
+        margin-bottom: 1rem;
+      }
+
+      .annonces-empty h3 {
+        font-size: 1.3rem;
+        color: #333;
+        margin-bottom: 0.5rem;
+      }
+
+      .annonces-empty p {
+        color: #888;
+      }
+
+      /* Load more */
+      .load-more-section {
+        text-align: center;
+        padding: 1.5rem 0;
+      }
+
+      .load-more-section .btn {
+        min-width: 260px;
+      }
+
+      /* CTA */
+      .annonces-cta {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        padding: 4rem 0;
+        text-align: center;
+      }
+
+      .annonces-cta-content i:first-child {
+        font-size: 3rem;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        display: block;
+      }
+
+      .annonces-cta h2 {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #fff;
+        margin-bottom: 0.75rem;
+      }
+
+      .annonces-cta p {
+        color: #b0b0b0;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      /* New announcement badge */
+      .listing-card.new-announcement {
+        border: 2px solid var(--primary);
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.15);
+      }
+
+      .listing-card.new-announcement::before {
+        content: "NOUVEAU";
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: var(--primary);
+        color: #1a1a1a;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        z-index: 10;
+      }
+
+      /* Highlighted announcement */
+      .listing-card.highlighted-announcement {
+        border: 2px solid #10b981;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+      }
+
+      .listing-card.highlighted-announcement::before {
+        content: "📍 VOTRE ANNONCE";
+        position: absolute;
+        top: -14px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #10b981;
+        color: #fff;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        z-index: 10;
+        white-space: nowrap;
+      }
+
+      /* Social links in footer */
+      .social-links {
+        display: flex;
+        gap: 1rem;
+      }
+
+      .social-links a {
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+      }
+
+      .social-links a:hover {
+        background: var(--primary);
+        color: #1a1a1a;
+        transform: translateY(-3px);
+      }
+
+      /* Notification styles */
+      .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--primary);
+        color: #1a1a1a;
+        padding: 14px 20px;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transform: translateX(400px);
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        max-width: 340px;
+        font-weight: 600;
+      }
+
+      .notification.show {
+        transform: translateX(0);
+      }
+
+      .notification i {
+        font-size: 1.1rem;
+        flex-shrink: 0;
+      }
+
+      .notification span {
+        flex: 1;
+      }
+
+      .notification-close {
+        background: rgba(0, 0, 0, 0.15);
+        border: none;
+        color: #1a1a1a;
+        border-radius: 50%;
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        flex-shrink: 0;
+      }
+
+      .notification-close:hover {
+        background: rgba(0, 0, 0, 0.25);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .annonces-hero h1 {
+          font-size: 1.75rem;
+        }
+
+        .annonces-filter-row {
+          grid-template-columns: 1fr;
+        }
+
+        .listings-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .annonces-cta h2 {
+          font-size: 1.5rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .annonces-hero {
+          padding: 2.5rem 0;
+        }
+
+        .annonces-filters {
+          padding: 1.25rem;
+        }
+
+        .listing-image {
+          height: 180px;
+        }
+      }
+    </style>
+  </body>
+</html>

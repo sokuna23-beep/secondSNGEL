@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Détails de l'annonce - Sénégal Élevage</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+
+</head>
+
+<body>
+    <!-- Navigation -->
+    <header class="header">
+        <div class="container">
+            <nav class="navbar">
+                <a href="index.html" class="logo">
+                    <i class="fas fa-cow"></i>
+                    <span>Sénégal<span class="highlight">Élevage</span></span>
+                </a>
+                <div class="nav-links">
+                    <a href="index.html"><i class="fas fa-home"></i> Accueil</a>
+                    <a href="materiel.html"><i class="fas fa-tools"></i> Matériel</a>
+                    <a href="betail.html"><i class="fas fa-cow"></i> Bétail</a>
+                    <a href="services.html"><i class="fas fa-handshake"></i> Services</a>
+                    <a href="publier-annonce.html"><i class="fas fa-plus-circle"></i> Créer une annonce</a>
+                    <a href="annonces.html"><i class="fas fa-bullhorn"></i> Annonces</a>
+                    <a href="authentification.html"><i class="fas fa-user"></i> Mon Compte</a>
+                    <a href="contact.html"><i class="fas fa-envelope"></i> Contact</a>
+                </div>
+                <div class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Breadcrumb -->
+    <section class="breadcrumb">
+        <div class="container">
+            <nav>
+                <a href="index.html">Accueil</a>
+                <i class="fas fa-chevron-right"></i>
+                <a href="annonces.html">Annonces</a>
+                <i class="fas fa-chevron-right"></i>
+                <span id="breadcrumb-category">Catégorie</span>
+                <i class="fas fa-chevron-right"></i>
+                <span id="breadcrumb-title">Détails de l'annonce</span>
+            </nav>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="details-main">
+        <div class="container">
+            <!-- Loading State -->
+            <div id="loading-state" class="loading-state">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Chargement de l'annonce...</p>
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div id="error-state" class="error-state" style="display: none;">
+                <div class="error-content">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h2>Annonce non trouvée</h2>
+                    <p>L'annonce que vous cherchez n'existe pas ou a été supprimée.</p>
+                    <a href="annonces.html" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Parcourir les annonces
+                    </a>
+                </div>
+            </div>
+
+            <!-- Announcement Details -->
+            <div id="announcement-details" class="announcement-details" style="display: none;">
+                <div class="details-layout">
+                    <!-- Left Column - Images -->
+                    <div class="details-images">
+                        <div class="main-image-container">
+                            <img id="main-image" src="" alt="" class="main-image">
+                            <div class="image-zoom" id="image-zoom">
+                                <i class="fas fa-search-plus"></i>
+                            </div>
+                        </div>
+
+                        <div class="thumbnail-container" id="thumbnail-container">
+                            <!-- Les vignettes seront ajoutées dynamiquement -->
+                        </div>
+                    </div>
+
+                    <!-- Right Column - Information -->
+                    <div class="details-info">
+                        <!-- Title and Price -->
+                        <div class="title-section">
+                            <h1 id="announcement-title" class="announcement-title"></h1>
+                            <div class="price-section">
+                                <div class="price" id="announcement-price"></div>
+                                <div class="price-meta">
+                                    <span class="negotiable" id="price-negotiable">
+                                        <i class="fas fa-handshake"></i> Négociable
+                                    </span>
+                                    <span class="urgent" id="announcement-urgent">
+                                        <i class="fas fa-bolt"></i> Urgent
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Info -->
+                        <div class="quick-info">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <i class="fas fa-tag"></i>
+                                    <div>
+                                        <span class="label">Catégorie</span>
+                                        <span id="info-category"></span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <div>
+                                        <span class="label">Localisation</span>
+                                        <span id="info-location"></span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-calendar"></i>
+                                    <div>
+                                        <span class="label">Publié le</span>
+                                        <span id="info-date"></span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-eye"></i>
+                                    <div>
+                                        <span class="label">Vues</span>
+                                        <span id="info-views"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="description-section">
+                            <h2><i class="fas fa-file-alt"></i> Description</h2>
+                            <div id="announcement-description" class="description-content"></div>
+                        </div>
+
+                        <!-- Seller Information -->
+                        <div class="seller-section">
+                            <h2><i class="fas fa-user"></i> Informations du vendeur</h2>
+                            <div class="seller-info">
+                                <div class="seller-avatar">
+                                    <i class="fas fa-user-circle"></i>
+                                </div>
+                                <div class="seller-details">
+                                    <h3 id="seller-name"></h3>
+                                    <div class="seller-meta">
+                                        <span class="seller-phone">
+                                            <i class="fas fa-phone"></i>
+                                            <span id="seller-phone"></span>
+                                        </span>
+                                        <span class="seller-location">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                            <span id="seller-location"></span>
+                                        </span>
+                                    </div>
+                                    <div class="seller-rating">
+                                        <div class="stars" id="seller-rating"></div>
+                                        <span id="seller-reviews"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="action-section">
+                            <button class="btn btn-primary btn-large contact-btn" id="contact-seller">
+                                <i class="fab fa-whatsapp"></i> Contacter via WhatsApp
+                            </button>
+                            <button class="btn btn-outline btn-large favorite-btn" id="add-favorite">
+                                <i class="far fa-heart"></i> Ajouter aux favoris
+                            </button>
+                            <button class="btn btn-outline btn-large share-btn" id="share-announcement">
+                                <i class="fas fa-share-alt"></i> Partager
+                            </button>
+                        </div>
+
+                        <!-- Additional Information -->
+                        <div class="additional-info">
+                            <h3><i class="fas fa-info-circle"></i> Informations complémentaires</h3>
+                            <div class="info-list">
+                                <div class="info-row">
+                                    <span class="label">État du produit:</span>
+                                    <span id="info-condition"></span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Livraison:</span>
+                                    <span id="info-delivery"></span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Type d'annonce:</span>
+                                    <span id="info-type"></span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">ID de l'annonce:</span>
+                                    <span id="info-id"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Similar Announcements -->
+            <section class="similar-announcements">
+                <h2><i class="fas fa-th"></i> Annonces similaires</h2>
+                <div class="similar-grid" id="similar-grid">
+                    <!-- Les annonces similaires seront ajoutées dynamiquement -->
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Contact Modal -->
+    <div class="modal" id="contact-modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Contacter le vendeur</h2>
+            <div class="modal-product-info">
+                <img id="modal-product-image" src="" alt="">
+                <div>
+                    <h3 id="modal-product-title"></h3>
+                    <p id="modal-product-price"></p>
+                </div>
+            </div>
+
+            <form id="contact-form">
+                <div class="form-group">
+                    <label for="contact-name">Votre nom complet</label>
+                    <input type="text" id="contact-name" required placeholder="Ex: Mamadou Diop">
+                </div>
+
+                <div class="form-group">
+                    <label for="contact-phone">Numéro de téléphone</label>
+                    <input type="tel" id="contact-phone" required placeholder="Ex: 77 123 45 67">
+                </div>
+
+                <div class="form-group">
+                    <label for="contact-email">Adresse email</label>
+                    <input type="email" id="contact-email" placeholder="votre.email@exemple.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="contact-message">Message</label>
+                    <textarea id="contact-message" rows="4" placeholder="Précisez votre demande..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Envoyer le message
+                    </button>
+                    <button type="button" class="btn btn-cancel close-modal">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="modal" id="share-modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Partager l'annonce</h2>
+            <div class="share-options">
+                <button class="share-btn" data-platform="whatsapp">
+                    <i class="fab fa-whatsapp"></i> WhatsApp
+                </button>
+                <button class="share-btn" data-platform="facebook">
+                    <i class="fab fa-facebook"></i> Facebook
+                </button>
+                <button class="share-btn" data-platform="twitter">
+                    <i class="fab fa-twitter"></i> Twitter
+                </button>
+                <button class="share-btn" data-platform="email">
+                    <i class="fas fa-envelope"></i> Email
+                </button>
+                <button class="share-btn" data-platform="copy">
+                    <i class="fas fa-link"></i> Copier le lien
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Sénégal Élevage</h3>
+                    <p>La plateforme de référence pour tous les éleveurs sénégalais</p>
+                </div>
+
+                <div class="footer-section">
+                    <h3>Liens rapides</h3>
+                    <ul>
+                        <li><a href="annonces.html">Toutes les annonces</a></li>
+                        <li><a href="publier-annonce.html">Créer une annonce</a></li>
+                        <li><a href="compte.html">Mon compte</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h3>Support</h3>
+                    <ul>
+                        <li><a href="contact.html#faq">Aide</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                        <li><a href="contact.html#abus">Signaler un abus</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2025 Sénégal Élevage. Tous droits réservés.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/supabase-config.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="js/annonce-details.js"></script>
+
+    <style>
+        /* Styles spécifiques à la page détails */
+        .details-main {
+            padding: 40px 0;
+            background: #f8f9fa;
+        }
+
+        .breadcrumb {
+            background: var(--bg-surface);
+            padding: 15px 0;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        .breadcrumb nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: #006837;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .loading-state,
+        .error-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .loading-spinner i {
+            font-size: 48px;
+            color: #006837;
+            margin-bottom: 20px;
+        }
+
+        .error-content i {
+            font-size: 48px;
+            color: #f44336;
+            margin-bottom: 20px;
+        }
+
+        .error-content h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .error-content p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .announcement-details {
+            margin-bottom: 40px;
+        }
+
+        .details-layout {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 30px;
+            background: var(--bg-surface);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .details-images {
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+
+        .main-image-container {
+            position: relative;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .main-image {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            background: #f0f0f0;
+        }
+
+        .image-zoom {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: var(--text-on-primary);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .image-zoom:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        .thumbnail-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .thumbnail {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .thumbnail:hover {
+            transform: scale(1.05);
+        }
+
+        .thumbnail.active {
+            border-color: #006837;
+        }
+
+        .details-info {
+            padding: 30px;
+        }
+
+        .title-section {
+            margin-bottom: 30px;
+        }
+
+        .announcement-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            line-height: 1.3;
+        }
+
+        .price-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .price {
+            font-size: 32px;
+            font-weight: bold;
+            color: #006837;
+        }
+
+        .price-meta {
+            display: flex;
+            gap: 10px;
+        }
+
+        .negotiable,
+        .urgent {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .negotiable {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .urgent {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .quick-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-item i {
+            width: 20px;
+            color: #006837;
+        }
+
+        .info-item .label {
+            font-size: 12px;
+            color: #666;
+            display: block;
+        }
+
+        .description-section,
+        .seller-section,
+        .action-section,
+        .additional-info {
+            margin-bottom: 30px;
+        }
+
+        .description-section h2,
+        .seller-section h2,
+        .action-section h2,
+        .additional-info h3 {
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .description-content {
+            line-height: 1.6;
+            color: #666;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #006837;
+        }
+
+        .seller-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .seller-avatar {
+            width: 60px;
+            height: 60px;
+            background: #006837;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--text-on-primary);
+        }
+
+        .seller-details h3 {
+            margin: 0 0 10px;
+            color: #333;
+        }
+
+        .seller-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .seller-phone,
+        .seller-location {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .seller-rating {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stars {
+            color: #ffc107;
+        }
+
+        .action-section {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn-large {
+            padding: 15px 30px;
+            font-size: 16px;
+        }
+
+        .additional-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .additional-info h3 {
+            margin-bottom: 15px;
+        }
+
+        .info-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-row .label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .similar-announcements {
+            margin-top: 40px;
+        }
+
+        .similar-announcements h2 {
+            margin-bottom: 25px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .similar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .similar-card {
+            background: var(--bg-surface);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .similar-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .similar-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .similar-info {
+            padding: 15px;
+        }
+
+        .similar-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .similar-price {
+            color: #006837;
+            font-weight: bold;
+            margin-bottom: 8px;
+        
+         }
+
+        .similar-location {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background: var(--bg-surface);
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .modal-product-info {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .modal-product-info img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #006837;
+        }
+
+        .share-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .share-btn {
+            padding: 15px;
+            border: 1px solid var(--gray-light);
+            background: var(--bg-surface);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .share-btn:hover {
+            background: #f8f9fa;
+            border-color: #006837;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .details-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .details-images {
+                position: static;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-section {
+                flex-direction: column;
+            }
+
+            .share-options {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</body>
+
+</html>

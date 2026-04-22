@@ -1,0 +1,69 @@
+Plan de renommage des fichiers pour Sénégal Élevage
+=====================================================
+
+=== FICHIERS HTML ===
+
+Fichiers à renommer :
+- senegal-elevage-frontend.html -> index.html (page d'accueil principale)
+- auth.html -> authentification.html (page d'authentification unifiée)
+- creer_annonce.html -> publier-annonce.html (formulaire de publication)
+- details_annonce.html -> annonce-details.html (détails d'une annonce)
+- admin.html -> administration.html (panneau d'administration)
+- mon_compte.html -> compte.html (espace personnel)
+- mentions.html -> mentions-legales.html (mentions légales)
+
+Fichiers à supprimer (obsolètes/doublons) :
+- connexion.html (remplacé par authentification.html)
+- inscription.html (remplacé par authentification.html)
+- creer_annonce_fixed.html (doublon)
+- creer_annonce_test.html (fichier de test)
+- test_upload.html (fichier de test)
+
+Fichiers déjà corrects :
+- annonces.html (liste des annonces)
+- betail.html (section bétail)
+- materiel.html (section matériel)
+- services.html (section services)
+- contact.html (page de contact)
+
+=== FICHIERS JAVASCRIPT ===
+
+Fichiers à renommer :
+- senegal_front_end.js -> index.js (script page d'accueil)
+- auth.js -> authentification.js (script authentification)
+- creer_annonces.js -> publier-annonce.js (script publication)
+- details_annonce.js -> annonce-details.js (script détails annonce)
+- admin.js -> administration.js (script administration)
+- mon_compte.js -> compte.js (script espace personnel)
+
+Fichiers à supprimer (obsolètes/doublons) :
+- connexion.js (remplacé par authentification.js)
+- inscription.js (remplacé par authentification.js)
+- creer_annonces_fixed.js (doublon)
+- annonces_backup.js (backup)
+- annonces_fixed.js (backup)
+
+Fichiers déjà corrects :
+- annonces.js (script annonces)
+- betail.js (script bétail)
+- materiel.js (script matériel)
+- services.js (script services)
+- contact.js (script contact)
+- navigation.js (script navigation)
+
+=== RÈGLES DE NOMMAGE APPLIQUÉES ===
+
+1. Noms en français cohérents avec le contenu
+2. Format minuscule avec tirets pour l'HTML
+3. Format minuscule avec tirets pour le JavaScript
+4. Un fichier par fonction principale
+5. Élimination des doublons et fichiers de test
+6. Correspondance exacte entre HTML et JS associés
+
+=== BÉNÉFICES ATTENDUS ===
+
+- Structure plus claire et maintenable
+- Noms explicites facilitant la navigation
+- Élimination de la confusion entre fichiers similaires
+- Cohérence avec les standards de développement web
+- Facilité de déploiement et de maintenance
