@@ -1,25 +1,38 @@
 /**
  * Fichier: supabase-config.js
  * Description: Configuration centralisée de Supabase pour Sénégal Élevage
+ * Version: 2.0.0
  * 
  * ⚠️ INSTRUCTIONS:
- * 1. Allez sur https://supabase.com et créez un projet
- * 2. Copiez votre Project URL et anon key depuis Settings > API
- * 3. Remplacez les valeurs ci-dessous par les vôtres
+ * 1. Ce fichier contient maintenant les vraies clés de connexion
+ * 2. Il est compatible avec tous les scripts du projet
+ * 3. Le mode hors-ligne est automatiquement géré
  */
 
 // ============================================================================
-// 🔑 VOS CLÉS SUPABASE (à remplacer)
+// 🔑 VOS CLÉS SUPABASE (CONFIGURÉES)
 // ============================================================================
 
-const SUPABASE_URL = 'https://VOTRE-PROJET-ID.supabase.co';
-const SUPABASE_ANON_KEY = 'VOTRE-CLE-ANON-PUBLIQUE';
+// MODIFICATION 1: Remplacement des placeholders par les vraies valeurs
+const SUPABASE_URL = 'https://mykmnwdeqwtpnnsvnlkf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15a21ud2RlcXd0cG5uc3ZubGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mjg5NzEsImV4cCI6MjA5MjUwNDk3MX0.Im2wNcNeRIH4ToI694EWvVQ4N5pW5FcukP_kFjuUHag';
+
+// Configuration supplémentaire
+const SUPABASE_STORAGE_BUCKET = 'annonces-images';
+const SUPABASE_TABLES = {
+    annonces: 'annonces',
+    eleveurs: 'eleveurs',
+    messages: 'messages',
+    favoris: 'favoris',
+    services: 'services'
+};
 
 // ============================================================================
 // INITIALISATION DU CLIENT SUPABASE
 // ============================================================================
 
 let supabase = null;
+let isInitialized = false;
 
 /**
  * Initialise le client Supabase
@@ -30,19 +43,28 @@ function initSupabaseClient() {
         // Vérifier que la librairie Supabase est chargée
         if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient !== 'function') {
             console.warn('⚠️ Librairie Supabase non chargée. Mode hors-ligne activé.');
+            console.warn('💡 Assurez-vous d\'inclure: <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>');
             return false;
         }
 
         // Vérifier que les clés sont configurées
-        if (SUPABASE_URL.includes('VOTRE-PROJET-ID') || SUPABASE_ANON_KEY.includes('VOTRE-CLE')) {
-            console.warn('⚠️ Clés Supabase non configurées. Modifiez supabase-config.js avec vos clés.');
-            console.warn('📖 Suivez le guide: GUIDE_SUPABASE.md');
+        if (SUPABASE_URL.includes('mykmnwdeqwtpnnsvnlkf') === false) {
+            console.warn('⚠️ URL Supabase non valide');
             return false;
         }
 
         // Créer le client
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true,
+                storage: localStorage,
+                autoRefreshToken: true
+            }
+        });
+        
+        isInitialized = true;
         console.log('✅ Supabase connecté avec succès');
+        console.log(`📡 URL: ${SUPABASE_URL}`);
         return true;
 
     } catch (error) {
@@ -60,7 +82,22 @@ function initSupabaseClient() {
  * @returns {boolean}
  */
 function isSupabaseConnected() {
-    return supabase !== null;
+    return supabase !== null && isInitialized;
+}
+
+/**
+ * Vérifie si l'utilisateur est connecté
+ * @returns {Promise<boolean>}
+ */
+async function isUserLoggedIn() {
+    if (!supabase) return false;
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        return session !== null;
+    } catch (error) {
+        console.error('❌ Erreur vérification session:', error);
+        return false;
+    }
 }
 
 /**
@@ -81,50 +118,92 @@ async function getCurrentUser() {
 /**
  * Écoute les changements d'état d'authentification
  * @param {Function} callback - Fonction appelée à chaque changement
+ * @returns {Object} Subscription object
  */
 function onAuthStateChange(callback) {
-    if (!supabase) return;
-    supabase.auth.onAuthStateChange((event, session) => {
+    if (!supabase) return { unsubscribe: () => {} };
+    return supabase.auth.onAuthStateChange((event, session) => {
+        console.log(`🔄 Auth event: ${event}`);
         callback(event, session);
     });
 }
 
+// ============================================================================
+// FONCTIONS STORAGE (Upload d'images)
+// ============================================================================
+
 /**
  * Upload une image sur Supabase Storage
  * @param {File} file - Le fichier image
- * @param {string} bucket - Le nom du bucket (par défaut: 'annonces')
+ * @param {string} folder - Dossier de destination (par défaut: 'annonces')
  * @returns {Promise<string|null>} URL publique de l'image ou null
  */
-async function uploadImage(file, bucket = 'annonces') {
+async function uploadImage(file, folder = 'annonces') {
     if (!supabase) {
         console.warn('⚠️ Supabase non connecté. Image non uploadée.');
         return null;
     }
 
     try {
+        // Vérifier que le bucket existe
+        await ensureStorageBucket();
+        
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+        const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
 
         const { data, error } = await supabase.storage
-            .from(bucket)
-            .upload(fileName, file);
+            .from(SUPABASE_STORAGE_BUCKET)
+            .upload(fileName, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
 
-        if (error) {
-            console.error('❌ Erreur upload image:', error.message);
-            return null;
-        }
+        if (error) throw error;
 
         // Récupérer l'URL publique
         const { data: { publicUrl } } = supabase.storage
-            .from(bucket)
+            .from(SUPABASE_STORAGE_BUCKET)
             .getPublicUrl(fileName);
 
         console.log('✅ Image uploadée:', publicUrl);
         return publicUrl;
 
     } catch (error) {
-        console.error('❌ Erreur lors de l\'upload:', error);
+        console.error('❌ Erreur lors de l\'upload:', error.message);
         return null;
+    }
+}
+
+/**
+ * Vérifie et crée le bucket de stockage si nécessaire
+ */
+async function ensureStorageBucket() {
+    if (!supabase) return;
+    
+    try {
+        const { data: buckets, error } = await supabase.storage.listBuckets();
+        
+        if (error) {
+            console.warn('⚠️ Impossible de lister les buckets:', error);
+            return;
+        }
+        
+        const bucketExists = buckets?.some(b => b.name === SUPABASE_STORAGE_BUCKET);
+        
+        if (!bucketExists) {
+            const { error: createError } = await supabase.storage.createBucket(
+                SUPABASE_STORAGE_BUCKET,
+                { public: true, fileSizeLimit: 5242880 } // 5MB
+            );
+            
+            if (createError) {
+                console.error('❌ Erreur création bucket:', createError);
+            } else {
+                console.log(`✅ Bucket "${SUPABASE_STORAGE_BUCKET}" créé`);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Erreur vérification bucket:', error);
     }
 }
 
@@ -146,8 +225,13 @@ async function createAnnonce(annonceData) {
 
     try {
         const { data, error } = await supabase
-            .from('annonces')
-            .insert([annonceData])
+            .from(SUPABASE_TABLES.annonces)
+            .insert([{
+                ...annonceData,
+                created_at: new Date().toISOString(),
+                status: 'actif',
+                views: 0
+            }])
             .select()
             .single();
 
@@ -158,7 +242,6 @@ async function createAnnonce(annonceData) {
 
     } catch (error) {
         console.error('❌ Erreur création annonce:', error.message);
-        // Fallback: sauvegarder localement
         saveToLocalStorage('local_annonces', annonceData);
         return null;
     }
@@ -166,7 +249,7 @@ async function createAnnonce(annonceData) {
 
 /**
  * Récupérer toutes les annonces actives
- * @param {Object} filters - Filtres optionnels { categorie, region, search }
+ * @param {Object} filters - Filtres optionnels { categorie, region, search, limit }
  * @returns {Promise<Array>} Liste des annonces
  */
 async function getAnnonces(filters = {}) {
@@ -177,7 +260,7 @@ async function getAnnonces(filters = {}) {
 
     try {
         let query = supabase
-            .from('annonces')
+            .from(SUPABASE_TABLES.annonces)
             .select('*')
             .eq('status', 'actif')
             .order('created_at', { ascending: false });
@@ -185,6 +268,9 @@ async function getAnnonces(filters = {}) {
         // Appliquer les filtres
         if (filters.categorie && filters.categorie !== 'all') {
             query = query.eq('categorie', filters.categorie);
+        }
+        if (filters.sous_categorie) {
+            query = query.eq('sous_categorie', filters.sous_categorie);
         }
         if (filters.region) {
             query = query.eq('region', filters.region);
@@ -222,7 +308,7 @@ async function getAnnonceById(id) {
 
     try {
         const { data, error } = await supabase
-            .from('annonces')
+            .from(SUPABASE_TABLES.annonces)
             .select('*')
             .eq('id', id)
             .single();
@@ -247,8 +333,8 @@ async function updateAnnonce(id, updates) {
 
     try {
         const { data, error } = await supabase
-            .from('annonces')
-            .update(updates)
+            .from(SUPABASE_TABLES.annonces)
+            .update({ ...updates, updated_at: new Date().toISOString() })
             .eq('id', id)
             .select()
             .single();
@@ -273,8 +359,8 @@ async function deleteAnnonce(id) {
 
     try {
         const { error } = await supabase
-            .from('annonces')
-            .update({ status: 'supprime' })
+            .from(SUPABASE_TABLES.annonces)
+            .update({ status: 'supprime', updated_at: new Date().toISOString() })
             .eq('id', id);
 
         if (error) throw error;
@@ -284,6 +370,44 @@ async function deleteAnnonce(id) {
     } catch (error) {
         console.error('❌ Erreur suppression:', error.message);
         return false;
+    }
+}
+
+// ============================================================================
+// FONCTIONS POUR LES SERVICES
+// ============================================================================
+
+/**
+ * Récupérer tous les services actifs
+ * @param {Object} filters - Filtres optionnels
+ * @returns {Promise<Array>}
+ */
+async function getServices(filters = {}) {
+    if (!supabase) {
+        return JSON.parse(localStorage.getItem('services_data') || '[]');
+    }
+
+    try {
+        let query = supabase
+            .from(SUPABASE_TABLES.services || 'services')
+            .select('*')
+            .eq('status', 'actif')
+            .order('created_at', { ascending: false });
+
+        if (filters.category && filters.category !== 'all') {
+            query = query.eq('categorie', filters.category);
+        }
+        if (filters.region) {
+            query = query.eq('region', filters.region);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+
+    } catch (error) {
+        console.error('❌ Erreur chargement services:', error.message);
+        return [];
     }
 }
 
@@ -306,20 +430,31 @@ async function signUp(email, password, metadata = {}) {
             email,
             password,
             options: {
-                data: metadata
+                data: {
+                    nom_complet: metadata.nom || metadata.name || '',
+                    telephone: metadata.telephone || ''
+                }
             }
         });
 
         if (error) throw error;
 
-        // Créer le profil dans la table profils
+        // Créer le profil dans la table eleveurs
         if (data.user) {
-            await supabase.from('profils').insert([{
-                id: data.user.id,
-                nom: metadata.nom || '',
-                telephone: metadata.telephone || '',
-                role: metadata.role || 'eleveur'
-            }]);
+            const { error: profileError } = await supabase
+                .from(SUPABASE_TABLES.eleveurs)
+                .insert([{
+                    user_id: data.user.id,
+                    nom_complet: metadata.nom || metadata.name || '',
+                    telephone: metadata.telephone || '',
+                    email: email,
+                    role: 'eleveur',
+                    status: 'actif'
+                }]);
+
+            if (profileError) {
+                console.warn('⚠️ Erreur création profil:', profileError.message);
+            }
         }
 
         console.log('✅ Utilisateur inscrit:', email);
@@ -362,15 +497,62 @@ async function signIn(email, password) {
  * @returns {Promise<boolean>}
  */
 async function signOut() {
-    if (!supabase) return false;
+    if (!supabase) {
+        // Nettoyer localStorage même hors ligne
+        localStorage.removeItem('user_session');
+        localStorage.removeItem('user_data');
+        return true;
+    }
 
     try {
         await supabase.auth.signOut();
+        localStorage.removeItem('user_session');
+        localStorage.removeItem('user_data');
         console.log('✅ Déconnexion réussie');
         return true;
     } catch (error) {
         console.error('❌ Erreur déconnexion:', error.message);
         return false;
+    }
+}
+
+// ============================================================================
+// FONCTIONS POUR LES MESSAGES DE CONTACT
+// ============================================================================
+
+/**
+ * Envoyer un message de contact
+ * @param {Object} messageData - Données du message
+ * @returns {Promise<Object>}
+ */
+async function sendContactMessage(messageData) {
+    if (!supabase) {
+        saveToLocalStorage('contact_messages', messageData);
+        return { success: true, local: true };
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from(SUPABASE_TABLES.messages)
+            .insert([{
+                nom: messageData.name,
+                email: messageData.email,
+                telephone: messageData.phone,
+                sujet: messageData.subject,
+                message: messageData.message,
+                status: 'non_lu'
+            }])
+            .select();
+
+        if (error) throw error;
+        
+        console.log('✅ Message envoyé via Supabase');
+        return { success: true, data: data[0] };
+
+    } catch (error) {
+        console.error('❌ Erreur envoi message:', error.message);
+        saveToLocalStorage('contact_messages', messageData);
+        return { success: true, local: true };
     }
 }
 
@@ -386,14 +568,41 @@ async function signOut() {
 function saveToLocalStorage(key, data) {
     try {
         const existing = JSON.parse(localStorage.getItem(key) || '[]');
-        data.id = data.id || Date.now();
-        data.created_at = data.created_at || new Date().toISOString();
-        existing.unshift(data);
+        const newData = {
+            ...data,
+            id: data.id || Date.now(),
+            created_at: data.created_at || new Date().toISOString()
+        };
+        existing.unshift(newData);
+        
+        // Garder seulement les 100 derniers
+        if (existing.length > 100) existing.splice(100);
+        
         localStorage.setItem(key, JSON.stringify(existing));
         console.log(`💾 Données sauvegardées localement (${key})`);
     } catch (error) {
         console.error('❌ Erreur localStorage:', error);
     }
+}
+
+/**
+ * Initialiser la session utilisateur depuis localStorage
+ * @returns {Object|null} Session utilisateur
+ */
+function initUserSession() {
+    try {
+        const session = localStorage.getItem('user_session');
+        if (session) {
+            const sessionData = JSON.parse(session);
+            const sessionAge = Date.now() - new Date(sessionData.created_at).getTime();
+            if (sessionAge < 24 * 60 * 60 * 1000) {
+                return sessionData.user;
+            }
+        }
+    } catch (e) {
+        console.warn('Erreur lecture session:', e);
+    }
+    return null;
 }
 
 // ============================================================================
@@ -403,32 +612,51 @@ function saveToLocalStorage(key, data) {
 // Initialiser dès que le script est chargé
 const supabaseReady = initSupabaseClient();
 
-// Export global pour les autres scripts
+// Exporter les variables globales pour les autres scripts
 window.supabaseClient = supabase;
+window.isSupabaseConnected = isSupabaseConnected;
+
+// Export global pour les autres scripts (API complète)
 window.SupabaseAPI = {
     // État
     isConnected: isSupabaseConnected,
+    isUserLoggedIn,
     client: () => supabase,
-
+    
     // Auth
     signUp,
     signIn,
     signOut,
     getCurrentUser,
     onAuthStateChange,
-
+    
     // Annonces CRUD
     createAnnonce,
     getAnnonces,
     getAnnonceById,
     updateAnnonce,
     deleteAnnonce,
-
+    
+    // Services
+    getServices,
+    
+    // Messages
+    sendContactMessage,
+    
     // Storage
     uploadImage,
-
+    
     // Utils
-    saveToLocalStorage
+    saveToLocalStorage,
+    initUserSession
 };
 
-console.log('📦 supabase-config.js chargé — API disponible via window.SupabaseAPI');
+// Exporter également les constantes
+window.SUPABASE_CONFIG = {
+    URL: SUPABASE_URL,
+    STORAGE_BUCKET: SUPABASE_STORAGE_BUCKET,
+    TABLES: SUPABASE_TABLES
+};
+
+console.log('📦 supabase-config.js chargé — API disponible');
+console.log(`📡 Statut: ${supabaseReady ? 'Connecté à Supabase' : 'Mode hors-ligne'}`);

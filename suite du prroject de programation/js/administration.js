@@ -7,6 +7,18 @@
  */
 
 // ============================================================================
+// CONFIGURATION SUPABASE (Base de données PostgreSQL)
+// ============================================================================
+
+// MODIFICATION 1: Ajout de la configuration Supabase pour l'administration
+// Configuration de la connexion à la base de données Supabase
+const SUPABASE_URL = 'https://mykmnwdeqwtpnnsvnlkf.supabase.co'; // URL du projet Supabase
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15a21ud2RlcXd0cG5uc3ZubGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mjg5NzEsImV4cCI6MjA5MjUwNDk3MX0.Im2wNcNeRIH4ToI694EWvVQ4N5pW5FcukP_kFjuUHag'; // Clé publique pour l'accès anonyme
+
+// MODIFICATION 2: Variable globale pour le client Supabase
+let supabaseClient = null;
+
+// ============================================================================
 // VARIABLES GLOBALES ET CONFIGURATION
 // ============================================================================
 
@@ -42,15 +54,19 @@ let currentFilters = {
 /**
  * Initialise le tableau de bord administrateur
  */
-function initializeAdminDashboard() {
+async function initializeAdminDashboard() {
     console.log('🚀 Initialisation du tableau de bord administrateur...');
     
     try {
-        // 1. Vérifier les permissions administrateur
-        checkAdminPermissions();
+        // MODIFICATION 3: Initialisation de Supabase au début
+        // 0. Initialiser la connexion à Supabase
+        await initSupabase();
         
-        // 2. Charger les données
-        loadAdminData();
+        // 1. Vérifier les permissions administrateur
+        await checkAdminPermissions();
+        
+        // 2. Charger les données depuis Supabase
+        await loadAdminData();
         
         // 3. Configurer les événements
         setupNavigationEvents();
@@ -61,7 +77,7 @@ function initializeAdminDashboard() {
         showSection('dashboard');
         
         // 5. Mettre à jour les statistiques
-        updateDashboardStats();
+        await updateDashboardStats();
         
         console.log('✅ Tableau de bord administrateur initialisé');
         
@@ -71,12 +87,68 @@ function initializeAdminDashboard() {
     }
 }
 
+// MODIFICATION 4: Nouvelle fonction pour initialiser Supabase
+/**
+ * Initialise la connexion à la base de données Supabase
+ * @returns {boolean} True si l'initialisation a réussi
+ */
+async function initSupabase() {
+    try {
+        // Vérifier si le client Supabase est disponible (script chargé)
+        if (typeof supabase !== 'undefined') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Connexion à la base de données Supabase établie pour l\'administration');
+            return true;
+        } else {
+            console.error('❌ Client Supabase non chargé. Vérifiez le script dans le HTML.');
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation de la base de données:', error);
+        return false;
+    }
+}
+
 /**
  * Vérifie si l'utilisateur a les permissions administrateur
  */
-function checkAdminPermissions() {
+async function checkAdminPermissions() {
     try {
-        currentUser = AuthManager.getCurrentUser();
+        // MODIFICATION 5: Utilisation de la session Supabase au lieu du localStorage
+        // Vérifier la session Supabase d'abord
+        if (supabaseClient) {
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
+            
+            if (session && session.user) {
+                // Récupérer le rôle depuis la base de données
+                const { data: profileData, error: profileError } = await supabaseClient
+                    .from('eleveurs')
+                    .select('role, nom_complet')
+                    .eq('user_id', session.user.id)
+                    .single();
+                
+                if (!profileError && profileData) {
+                    currentUser = {
+                        id: session.user.id,
+                        email: session.user.email,
+                        name: profileData.nom_complet,
+                        role: profileData.role
+                    };
+                } else {
+                    currentUser = {
+                        id: session.user.id,
+                        email: session.user.email,
+                        name: session.user.email,
+                        role: 'eleveur'
+                    };
+                }
+            }
+        }
+        
+        // Fallback: Vérifier dans localStorage si Supabase n'est pas disponible
+        if (!currentUser && window.AuthManager) {
+            currentUser = window.AuthManager.getCurrentUser();
+        }
         
         if (!currentUser) {
             console.error('❌ Aucun utilisateur connecté');
@@ -92,7 +164,10 @@ function checkAdminPermissions() {
         }
         
         // Mettre à jour l'affichage
-        document.getElementById('admin-name').textContent = currentUser.name;
+        const adminNameElement = document.getElementById('admin-name');
+        if (adminNameElement) {
+            adminNameElement.textContent = currentUser.name;
+        }
         
         console.log('✅ Permissions administrateur vérifiées pour:', currentUser.name);
         
@@ -102,35 +177,71 @@ function checkAdminPermissions() {
     }
 }
 
+// MODIFICATION 6: Chargement des données depuis Supabase au lieu de localStorage
 /**
- * Charge les données administratives
+ * Charge les données administratives depuis Supabase
  */
-function loadAdminData() {
+async function loadAdminData() {
     try {
-        // Charger les annonces
-        allAnnonces = JSON.parse(localStorage.getItem('local_annonces') || '[]');
-        
-        // Charger les utilisateurs
-        allUsers = JSON.parse(localStorage.getItem('local_users') || '[]');
-        
-        // Ajouter les comptes de démonstration
-        const demoUsers = Object.values(AuthManager.DEMO_ACCOUNTS);
-        demoUsers.forEach(demo => {
-            if (!allUsers.find(u => u.email === demo.email)) {
-                allUsers.push(demo);
+        if (!supabaseClient) {
+            console.warn('⚠️ Supabase non disponible, utilisation du localStorage');
+            // Fallback vers localStorage
+            allAnnonces = JSON.parse(localStorage.getItem('local_annonces') || '[]');
+            allUsers = JSON.parse(localStorage.getItem('local_users') || '[]');
+            allMessages = JSON.parse(localStorage.getItem('contact_requests') || '[]');
+            
+            // Ajouter les comptes de démonstration
+            if (window.AuthManager) {
+                const demoUsers = Object.values(window.AuthManager.DEMO_ACCOUNTS);
+                demoUsers.forEach(demo => {
+                    if (!allUsers.find(u => u.email === demo.email)) {
+                        allUsers.push(demo);
+                    }
+                });
             }
-        });
+            
+            console.log(`📊 Données locales chargées: ${allAnnonces.length} annonces, ${allUsers.length} utilisateurs, ${allMessages.length} messages`);
+            return;
+        }
         
-        // Charger les messages
-        allMessages = JSON.parse(localStorage.getItem('contact_requests') || '[]');
+        // Charger les annonces depuis Supabase
+        console.log('📡 Chargement des annonces depuis Supabase...');
+        const { data: annoncesData, error: annoncesError } = await supabaseClient
+            .from('annonces')
+            .select('*')
+            .order('created_at', { ascending: false });
         
-        console.log(`📊 Données chargées: ${allAnnonces.length} annonces, ${allUsers.length} utilisateurs, ${allMessages.length} messages`);
+        if (annoncesError) throw annoncesError;
+        allAnnonces = annoncesData || [];
+        
+        // Charger les utilisateurs depuis Supabase (table eleveurs)
+        console.log('📡 Chargement des utilisateurs depuis Supabase...');
+        const { data: usersData, error: usersError } = await supabaseClient
+            .from('eleveurs')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (usersError) throw usersError;
+        allUsers = usersData || [];
+        
+        // Charger les messages depuis Supabase
+        console.log('📡 Chargement des messages depuis Supabase...');
+        const { data: messagesData, error: messagesError } = await supabaseClient
+            .from('messages')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (messagesError) throw messagesError;
+        allMessages = messagesData || [];
+        
+        console.log(`📊 Données Supabase chargées: ${allAnnonces.length} annonces, ${allUsers.length} utilisateurs, ${allMessages.length} messages`);
         
     } catch (error) {
-        console.error('❌ Erreur lors du chargement des données:', error);
-        allAnnonces = [];
-        allUsers = [];
-        allMessages = [];
+        console.error('❌ Erreur lors du chargement des données depuis Supabase:', error);
+        // Fallback vers localStorage en cas d'erreur
+        allAnnonces = JSON.parse(localStorage.getItem('local_annonces') || '[]');
+        allUsers = JSON.parse(localStorage.getItem('local_users') || '[]');
+        allMessages = JSON.parse(localStorage.getItem('contact_requests') || '[]');
     }
 }
 
@@ -166,7 +277,10 @@ function showSection(sectionId) {
     document.querySelectorAll('.admin-nav .nav-link').forEach(link => {
         link.classList.remove('active');
     });
-    document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+    const activeLink = document.querySelector(`[data-section="${sectionId}"]`);
+    if (activeLink) {
+        activeLink.classList.add('active');
+    }
     
     // Masquer toutes les sections
     document.querySelectorAll('.admin-section').forEach(section => {
@@ -302,7 +416,7 @@ function loadRecentActivity() {
         activities.push({
             type: 'ad',
             icon: 'fa-bullhorn',
-            title: `Nouvelle annonce: ${ad.titre}`,
+            title: `Nouvelle annonce: ${ad.titre || ad.title}`,
             time: ad.created_at,
             color: '#006837'
         });
@@ -313,8 +427,8 @@ function loadRecentActivity() {
         activities.push({
             type: 'user',
             icon: 'fa-user-plus',
-            title: `Nouvel utilisateur: ${user.name}`,
-            time: user.created_at || new Date().toISOString(),
+            title: `Nouvel utilisateur: ${user.nom_complet || user.name}`,
+            time: user.created_at,
             color: '#dc3545'
         });
     });
@@ -324,8 +438,8 @@ function loadRecentActivity() {
         activities.push({
             type: 'message',
             icon: 'fa-envelope',
-            title: `Nouveau message de ${msg.userName}`,
-            time: msg.timestamp,
+            title: `Nouveau message de ${msg.nom || msg.userName || 'Anonyme'}`,
+            time: msg.created_at || msg.timestamp,
             color: '#007bff'
         });
     });
@@ -385,9 +499,9 @@ function displayAnnonces() {
         if (currentFilters.ads.category && ad.categorie !== currentFilters.ads.category) return false;
         if (currentFilters.ads.search) {
             const search = currentFilters.ads.search.toLowerCase();
-            if (!ad.titre.toLowerCase().includes(search) && 
-                !ad.description.toLowerCase().includes(search) &&
-                !ad.nom.toLowerCase().includes(search)) return false;
+            if (!(ad.titre || ad.title || '').toLowerCase().includes(search) && 
+                !(ad.description || '').toLowerCase().includes(search) &&
+                !(ad.nom || '').toLowerCase().includes(search)) return false;
         }
         return true;
     });
@@ -427,22 +541,22 @@ function createAnnonceRow(ad) {
     const statusText = getStatusText(ad.status);
     
     row.innerHTML = `
-        <td>${ad.id}</td>
-        <td><strong>${ad.titre}</strong></td>
-        <td>${ad.categorie || 'Non spécifié'}</td>
-        <td>${ad.prix.toLocaleString()} ${ad.devise || 'XOF'}</td>
-        <td>${ad.nom}</td>
+        <td>${ad.id || ad.id_annonce}</td>
+        <td><strong>${ad.titre || ad.title}</strong></td>
+        <td>${ad.categorie || ad.category || 'Non spécifié'}</td>
+        <td>${(ad.prix || 0).toLocaleString()} ${ad.devise || 'XOF'}</td>
+        <td>${ad.nom || ad.nom_complet || 'Anonyme'}</td>
         <td>${formatDate(ad.created_at)}</td>
         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
         <td>
             <div class="action-buttons">
-                <button class="btn btn-sm btn-primary" onclick="viewAnnonce(${ad.id})">
+                <button class="btn btn-sm btn-primary" onclick="window.AdminManager.viewAnnonce(${ad.id || ad.id_annonce})">
                     <i class="fas fa-eye"></i>
                 </button>
-                <button class="btn btn-sm btn-warning" onclick="editAnnonce(${ad.id})">
+                <button class="btn btn-sm btn-warning" onclick="window.AdminManager.editAnnonce(${ad.id || ad.id_annonce})">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="btn btn-sm btn-danger" onclick="deleteAnnonce(${ad.id})">
+                <button class="btn btn-sm btn-danger" onclick="window.AdminManager.deleteAnnonce(${ad.id || ad.id_annonce})">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -452,15 +566,57 @@ function createAnnonceRow(ad) {
     return row;
 }
 
+// MODIFICATION 7: Suppression d'annonce avec Supabase
+/**
+ * Supprime une annonce
+ * @param {number} adId - ID de l'annonce
+ */
+async function deleteAnnonce(adId) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette annonce ?')) {
+        return;
+    }
+    
+    try {
+        if (supabaseClient) {
+            // Supprimer dans Supabase
+            const { error } = await supabaseClient
+                .from('annonces')
+                .delete()
+                .eq('id', adId);
+            
+            if (error) throw error;
+            
+            // Recharger les données
+            await loadAdminData();
+        } else {
+            // Fallback localStorage
+            const index = allAnnonces.findIndex(a => a.id === adId);
+            if (index !== -1) {
+                allAnnonces.splice(index, 1);
+                localStorage.setItem('local_annonces', JSON.stringify(allAnnonces));
+            }
+        }
+        
+        displayAnnonces();
+        updateBadges();
+        showSuccess('Annonce supprimée avec succès');
+        
+        console.log('🗑️ Annonce supprimée:', adId);
+    } catch (error) {
+        console.error('❌ Erreur lors de la suppression:', error);
+        showError('Erreur lors de la suppression de l\'annonce');
+    }
+}
+
 /**
  * Affiche les détails d'une annonce
  * @param {number} adId - ID de l'annonce
  */
 function viewAnnonce(adId) {
-    const ad = allAnnonces.find(a => a.id === adId);
+    const ad = allAnnonces.find(a => (a.id === adId || a.id_annonce === adId));
     if (!ad) return;
     
-    console.log('👁️ Visualisation de l\'annonce:', ad.titre);
+    console.log('👁️ Visualisation de l\'annonce:', ad.titre || ad.title);
     window.open(`annonce-details.html?id=${adId}`, '_blank');
 }
 
@@ -469,38 +625,11 @@ function viewAnnonce(adId) {
  * @param {number} adId - ID de l'annonce
  */
 function editAnnonce(adId) {
-    const ad = allAnnonces.find(a => a.id === adId);
+    const ad = allAnnonces.find(a => (a.id === adId || a.id_annonce === adId));
     if (!ad) return;
     
-    console.log('✏️ Modification de l\'annonce:', ad.titre);
+    console.log('✏️ Modification de l\'annonce:', ad.titre || ad.title);
     window.open(`publier-annonce.html?edit=${adId}`, '_blank');
-}
-
-/**
- * Supprime une annonce
- * @param {number} adId - ID de l'annonce
- */
-function deleteAnnonce(adId) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette annonce ?')) {
-        return;
-    }
-    
-    try {
-        const index = allAnnonces.findIndex(a => a.id === adId);
-        if (index !== -1) {
-            allAnnonces.splice(index, 1);
-            localStorage.setItem('local_annonces', JSON.stringify(allAnnonces));
-            
-            displayAnnonces();
-            updateBadges();
-            showSuccess('Annonce supprimée avec succès');
-            
-            console.log('🗑️ Annonce supprimée:', adId);
-        }
-    } catch (error) {
-        console.error('❌ Erreur lors de la suppression:', error);
-        showError('Erreur lors de la suppression de l\'annonce');
-    }
 }
 
 // ============================================================================
@@ -528,8 +657,8 @@ function displayUsers() {
         if (currentFilters.users.status && user.status !== currentFilters.users.status) return false;
         if (currentFilters.users.search) {
             const search = currentFilters.users.search.toLowerCase();
-            if (!user.name.toLowerCase().includes(search) && 
-                !user.email.toLowerCase().includes(search)) return false;
+            if (!(user.nom_complet || user.name || '').toLowerCase().includes(search) && 
+                !(user.email || '').toLowerCase().includes(search)) return false;
         }
         return true;
     });
@@ -567,24 +696,29 @@ function createUserRow(user) {
     
     const statusClass = `status-${user.status || 'actif'}`;
     const statusText = getStatusText(user.status);
+    const userName = user.nom_complet || user.name || 'N/A';
+    const userEmail = user.email || 'N/A';
+    const userPhone = user.telephone || user.phone || 'N/A';
+    const userRole = user.role || 'eleveur';
+    const userDate = user.created_at;
     
     row.innerHTML = `
-        <td>${user.id || 'N/A'}</td>
-        <td><strong>${user.name}</strong></td>
-        <td>${user.email}</td>
-        <td>${user.phone || 'N/A'}</td>
-        <td><span class="role-badge">${user.role}</span></td>
+        <td>${user.user_id || user.id || 'N/A'}</td>
+        <td><strong>${userName}</strong></td>
+        <td>${userEmail}</td>
+        <td>${userPhone}</td>
+        <td><span class="role-badge">${userRole}</span></td>
         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-        <td>${formatDate(user.created_at)}</td>
+        <td>${formatDate(userDate)}</td>
         <td>
             <div class="action-buttons">
-                <button class="btn btn-sm btn-primary" onclick="viewUser('${user.email}')">
+                <button class="btn btn-sm btn-primary" onclick="window.AdminManager.viewUser('${userEmail}')">
                     <i class="fas fa-eye"></i>
                 </button>
-                <button class="btn btn-sm btn-warning" onclick="editUser('${user.email}')">
+                <button class="btn btn-sm btn-warning" onclick="window.AdminManager.editUser('${userEmail}')">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.email}')">
+                <button class="btn btn-sm btn-danger" onclick="window.AdminManager.deleteUser('${userEmail}')">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -602,16 +736,16 @@ function viewUser(userEmail) {
     const user = allUsers.find(u => u.email === userEmail);
     if (!user) return;
     
-    console.log('👁️ Visualisation de l\'utilisateur:', user.name);
+    console.log('👁️ Visualisation de l\'utilisateur:', user.nom_complet || user.name);
     
     const details = `
-        👤 ${user.name}
-        
-        📧 Email: ${user.email}
-        📞 Téléphone: ${user.phone || 'Non spécifié'}
-        🏷️ Rôle: ${user.role}
-        📊 Statut: ${user.status || 'Actif'}
-        📅 Inscription: ${formatDate(user.created_at)}
+        👤 ${user.nom_complet || user.name}\n\n
+        📧 Email: ${user.email}\n
+        📞 Téléphone: ${user.telephone || user.phone || 'Non spécifié'}\n
+        🏷️ Rôle: ${user.role || 'eleveur'}\n
+        📊 Statut: ${user.status || 'Actif'}\n
+        📅 Inscription: ${formatDate(user.created_at)}\n
+        📍 Région: ${user.region || 'Non spécifiée'}
     `;
     
     alert(details);
@@ -625,33 +759,59 @@ function editUser(userEmail) {
     const user = allUsers.find(u => u.email === userEmail);
     if (!user) return;
     
-    console.log('✏️ Modification de l\'utilisateur:', user.name);
+    console.log('✏️ Modification de l\'utilisateur:', user.nom_complet || user.name);
     
     // En production, ouvrir un modal de modification
     showInfo('Fonctionnalité de modification en cours de développement');
 }
 
+// MODIFICATION 8: Suppression d'utilisateur avec Supabase
 /**
  * Supprime un utilisateur
  * @param {string} userEmail - Email de l'utilisateur
  */
-function deleteUser(userEmail) {
+async function deleteUser(userEmail) {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
         return;
     }
     
     try {
-        const index = allUsers.findIndex(u => u.email === userEmail);
-        if (index !== -1) {
-            allUsers.splice(index, 1);
-            localStorage.setItem('local_users', JSON.stringify(allUsers));
+        if (supabaseClient) {
+            // Trouver l'utilisateur d'abord
+            const userToDelete = allUsers.find(u => u.email === userEmail);
             
-            displayUsers();
-            updateBadges();
-            showSuccess('Utilisateur supprimé avec succès');
+            if (userToDelete && userToDelete.user_id) {
+                // Supprimer l'utilisateur dans Supabase Auth
+                // Note: La suppression via le client anon n'est pas autorisée
+                // Cela devrait être fait via une fonction Edge ou le dashboard
+                console.warn('⚠️ La suppression d\'utilisateur doit être faite via le dashboard Supabase');
+                showInfo('Pour les utilisateurs Supabase, veuillez utiliser le dashboard administrateur');
+            }
             
-            console.log('🗑️ Utilisateur supprimé:', userEmail);
+            // Supprimer le profil dans la table eleveurs
+            const { error } = await supabaseClient
+                .from('eleveurs')
+                .delete()
+                .eq('email', userEmail);
+            
+            if (error) throw error;
+            
+            // Recharger les données
+            await loadAdminData();
+        } else {
+            // Fallback localStorage
+            const index = allUsers.findIndex(u => u.email === userEmail);
+            if (index !== -1) {
+                allUsers.splice(index, 1);
+                localStorage.setItem('local_users', JSON.stringify(allUsers));
+            }
         }
+        
+        displayUsers();
+        updateBadges();
+        showSuccess('Utilisateur supprimé avec succès');
+        
+        console.log('🗑️ Utilisateur supprimé:', userEmail);
     } catch (error) {
         console.error('❌ Erreur lors de la suppression:', error);
         showError('Erreur lors de la suppression de l\'utilisateur');
@@ -715,18 +875,25 @@ function createMessageElement(msg) {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message-item';
     
+    const senderName = msg.nom || msg.userName || 'Anonyme';
+    const senderEmail = msg.email || msg.userEmail || '';
+    const messageTitle = msg.sujet || msg.title || 'Demande de contact';
+    const messageContent = msg.message || msg.userMessage || 'Pas de message';
+    const messagePhone = msg.telephone || msg.phone || '';
+    const messageDate = msg.created_at || msg.timestamp;
+    
     messageDiv.innerHTML = `
         <div class="message-header">
             <div class="message-sender">
-                <strong>${msg.userName || 'Anonyme'}</strong>
-                ${msg.userEmail ? `<span>(${msg.userEmail})</span>` : ''}
+                <strong>${senderName}</strong>
+                ${senderEmail ? `<span>(${senderEmail})</span>` : ''}
             </div>
-            <div class="message-time">${formatRelativeTime(msg.timestamp)}</div>
+            <div class="message-time">${formatRelativeTime(messageDate)}</div>
         </div>
         <div class="message-content">
-            <p><strong>Objet:</strong> ${msg.title || 'Demande de contact'}</p>
-            <p>${msg.userMessage || 'Pas de message'}</p>
-            ${msg.phone ? `<p><strong>Téléphone:</strong> ${msg.phone}</p>` : ''}
+            <p><strong>Objet:</strong> ${messageTitle}</p>
+            <p>${messageContent}</p>
+            ${messagePhone ? `<p><strong>Téléphone:</strong> ${messagePhone}</p>` : ''}
         </div>
     `;
     
@@ -782,12 +949,12 @@ function loadSettingsData() {
 function saveSettings() {
     try {
         const settings = {
-            'auto-approve-ads': document.getElementById('auto-approve-ads').checked,
-            'max-ads-per-user': parseInt(document.getElementById('max-ads-per-user').value),
-            'email-verification': document.getElementById('email-verification').checked,
-            'auto-approve-users': document.getElementById('auto-approve-users').checked,
-            'email-notifications': document.getElementById('email-notifications').checked,
-            'admin-email': document.getElementById('admin-email').value
+            'auto-approve-ads': document.getElementById('auto-approve-ads')?.checked || false,
+            'max-ads-per-user': parseInt(document.getElementById('max-ads-per-user')?.value || '10'),
+            'email-verification': document.getElementById('email-verification')?.checked || false,
+            'auto-approve-users': document.getElementById('auto-approve-users')?.checked || false,
+            'email-notifications': document.getElementById('email-notifications')?.checked || false,
+            'admin-email': document.getElementById('admin-email')?.value || ''
         };
         
         localStorage.setItem('admin_settings', JSON.stringify(settings));
@@ -872,9 +1039,9 @@ function setupFilterEvents() {
  */
 function updateAdFilters() {
     currentFilters.ads = {
-        status: document.getElementById('ad-status-filter').value,
-        category: document.getElementById('ad-category-filter').value,
-        search: document.getElementById('ad-search').value
+        status: document.getElementById('ad-status-filter')?.value || '',
+        category: document.getElementById('ad-category-filter')?.value || '',
+        search: document.getElementById('ad-search')?.value || ''
     };
 }
 
@@ -883,9 +1050,9 @@ function updateAdFilters() {
  */
 function updateUserFilters() {
     currentFilters.users = {
-        role: document.getElementById('user-role-filter').value,
-        status: document.getElementById('user-status-filter').value,
-        search: document.getElementById('user-search').value
+        role: document.getElementById('user-role-filter')?.value || '',
+        status: document.getElementById('user-status-filter')?.value || '',
+        search: document.getElementById('user-search')?.value || ''
     };
 }
 
@@ -894,8 +1061,8 @@ function updateUserFilters() {
  */
 function updateMessageFilters() {
     currentFilters.messages = {
-        type: document.getElementById('message-type-filter').value,
-        status: document.getElementById('message-status-filter').value
+        type: document.getElementById('message-type-filter')?.value || '',
+        status: document.getElementById('message-status-filter')?.value || ''
     };
 }
 
@@ -929,7 +1096,12 @@ function updateBadges() {
 /**
  * Met à jour les statistiques du tableau de bord
  */
-function updateDashboardStats() {
+async function updateDashboardStats() {
+    // MODIFICATION 9: Recharger les données depuis Supabase pour des stats à jour
+    if (supabaseClient) {
+        await loadAdminData();
+    }
+    
     const stats = {
         totalAds: allAnnonces.length,
         totalUsers: allUsers.length,
@@ -951,7 +1123,7 @@ function exportData() {
             users: allUsers,
             messages: allMessages,
             exported_at: new Date().toISOString(),
-            exported_by: currentUser.name
+            exported_by: currentUser?.name || 'Administrateur'
         };
         
         const dataStr = JSON.stringify(exportData, null, 2);
@@ -1014,6 +1186,7 @@ function getStatusText(status) {
  * @returns {string} Date formatée
  */
 function formatDate(dateString) {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('fr-FR');
 }
@@ -1024,6 +1197,7 @@ function formatDate(dateString) {
  * @returns {string} Date formatée
  */
 function formatRelativeTime(dateString) {
+    if (!dateString) return 'Date inconnue';
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now - date;
@@ -1068,8 +1242,8 @@ function showInfo(message) {
  * @param {string} message - Message à afficher
  */
 function showError(message) {
-    if (windowHelper) {
-        windowHelper.showError(message);
+    if (window.NavigationHelper) {
+        window.NavigationHelper.showError(message);
     } else {
         alert('❌ ' + message);
     }
@@ -1081,7 +1255,6 @@ function showError(message) {
 
 // Exporter les fonctions pour usage global
 window.AdminManager = {
-    showSection,
     viewAnnonce,
     editAnnonce,
     deleteAnnonce,
@@ -1100,3 +1273,4 @@ window.AdminManager = {
 document.addEventListener('DOMContentLoaded', initializeAdminDashboard);
 
 console.log('✅ Script administration.js chargé - Prêt pour le tableau de bord administrateur');
+console.log('🔗 Connexion Supabase configurée avec l\'URL:', SUPABASE_URL);

@@ -1,9 +1,50 @@
 /**
  * Fichier: navigation.js
  * Description: Script commun pour la navigation mobile et les fonctionnalités partagées
- * Version: 1.0.0
+ * Version: 2.0.0
  * Auteur: Sénégal Élevage Team
  */
+
+// ============================================================================
+// CONFIGURATION SUPABASE (Base de données PostgreSQL)
+// ============================================================================
+
+// MODIFICATION 1: Ajout de la configuration Supabase pour les fonctions partagées
+const SUPABASE_URL = 'https://mykmnwdeqwtpnnsvnlkf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15a21ud2RlcXd0cG5uc3ZubGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mjg5NzEsImV4cCI6MjA5MjUwNDk3MX0.Im2wNcNeRIH4ToI694EWvVQ4N5pW5FcukP_kFjuUHag';
+
+// MODIFICATION 2: Variable globale pour le client Supabase
+let supabaseClient = null;
+let isUsingSupabase = false;
+
+// MODIFICATION 3: Initialisation de Supabase (appelée depuis d'autres scripts)
+async function initSupabase() {
+    try {
+        if (typeof supabase !== 'undefined') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Connexion Supabase établie pour navigation.js');
+            
+            // Tester la connexion
+            const { error } = await supabaseClient
+                .from('annonces')
+                .select('count', { count: 'exact', head: true });
+            
+            if (!error) {
+                isUsingSupabase = true;
+                console.log('✅ Base de données accessible pour navigation');
+            }
+        } else {
+            console.warn('⚠️ Client Supabase non trouvé pour navigation.js');
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation Supabase:', error);
+    }
+}
+
+// Initialisation automatique
+document.addEventListener('DOMContentLoaded', () => {
+    initSupabase();
+});
 
 // ============================================================================
 // FONCTIONS DE NAVIGATION MOBILE
@@ -110,16 +151,36 @@ function showNotification(message, type = 'success', duration = 5000) {
         </button>
     `;
     
+    // Styles pour la notification (si non définis ailleurs)
+    notification.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: ${type === 'error' ? '#f44336' : type === 'success' ? '#4caf50' : '#2196f3'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        font-size: 14px;
+        animation: slideIn 0.3s ease;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    `;
+    
     document.body.appendChild(notification);
     
     // Animation d'apparition
     setTimeout(() => {
-        notification.classList.add('show');
+        notification.style.transform = 'translateX(0)';
     }, 100);
     
     // Disparition automatique
     setTimeout(() => {
-        notification.classList.remove('show');
+        notification.style.transform = 'translateX(100%)';
         setTimeout(() => {
             if (notification.parentElement) {
                 notification.remove();
@@ -156,6 +217,7 @@ function showInfo(message) {
  * @returns {string} Date formatée
  */
 function formatRelativeTime(dateString) {
+    if (!dateString) return 'Date inconnue';
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now - date;
@@ -178,6 +240,7 @@ function formatRelativeTime(dateString) {
  * @returns {string} Prix formaté
  */
 function formatPrice(price, currency = 'XOF') {
+    if (!price && price !== 0) return 'Prix sur demande';
     return `${price.toLocaleString()} ${currency}`;
 }
 
@@ -187,8 +250,8 @@ function formatPrice(price, currency = 'XOF') {
  * @param {number} maxLength - Longueur maximale
  * @returns {string} Texte tronqué
  */
-function truncateText(text, maxLength) {
-    if (!text || text.length <= maxLength) return text;
+function truncateText(text, maxLength = 100) {
+    if (!text || text.length <= maxLength) return text || '';
     return text.substring(0, maxLength) + '...';
 }
 
@@ -197,26 +260,23 @@ function truncateText(text, maxLength) {
  * @param {number} rating - Note
  * @returns {string} HTML des étoiles
  */
-function generateStars(rating) {
+function generateStars(rating = 0) {
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
     const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
     
     let stars = '';
     
-    // Étoiles pleines
     for (let i = 0; i < fullStars; i++) {
-        stars += '<i class="fas fa-star"></i>';
+        stars += '<i class="fas fa-star" style="color: #ffc107;"></i>';
     }
     
-    // Demi-étoile
     if (hasHalfStar) {
-        stars += '<i class="fas fa-star-half-alt"></i>';
+        stars += '<i class="fas fa-star-half-alt" style="color: #ffc107;"></i>';
     }
     
-    // Étoiles vides
     for (let i = 0; i < emptyStars; i++) {
-        stars += '<i class="far fa-star"></i>';
+        stars += '<i class="far fa-star" style="color: #ffc107;"></i>';
     }
     
     return stars;
@@ -232,7 +292,8 @@ function saveContactRequest(requestData) {
         requests.unshift({
             ...requestData,
             id: Date.now(),
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            synced: isUsingSupabase
         });
         
         // Garder seulement les 100 dernières demandes
@@ -274,6 +335,8 @@ function shareAnnouncement(url, title, platform) {
         case 'copy':
             navigator.clipboard.writeText(url).then(() => {
                 showNotification('📋 Lien copié dans le presse-papiers');
+            }).catch(() => {
+                showError('Impossible de copier le lien');
             });
             return;
     }
@@ -283,28 +346,56 @@ function shareAnnouncement(url, title, platform) {
     }
 }
 
+// MODIFICATION 4: Amélioration de la gestion des favoris avec Supabase
 /**
  * Ajoute ou retire une annonce des favoris
  * @param {Object} announcement - Annonce à gérer
  */
-function toggleFavorite(announcement) {
+async function toggleFavorite(announcement) {
     try {
         let favorites = JSON.parse(localStorage.getItem('user_favorites') || '[]');
         const existingIndex = favorites.findIndex(fav => fav.id === announcement.id);
         
+        // Si Supabase est disponible, synchroniser avec la base de données
+        if (isUsingSupabase && supabaseClient) {
+            const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+            
+            if (!userError && user) {
+                if (existingIndex >= 0) {
+                    // Supprimer des favoris dans Supabase
+                    const { error } = await supabaseClient
+                        .from('favoris')
+                        .delete()
+                        .eq('user_id', user.id)
+                        .eq('annonce_id', announcement.id);
+                    
+                    if (!error) console.log('✅ Favori supprimé de Supabase');
+                } else {
+                    // Ajouter aux favoris dans Supabase
+                    const { error } = await supabaseClient
+                        .from('favoris')
+                        .insert({
+                            user_id: user.id,
+                            annonce_id: announcement.id
+                        });
+                    
+                    if (!error) console.log('✅ Favori ajouté à Supabase');
+                }
+            }
+        }
+        
+        // Mettre à jour localStorage
         if (existingIndex >= 0) {
-            // Retirer des favoris
             favorites.splice(existingIndex, 1);
             showNotification('💔 Retiré des favoris');
         } else {
-            // Ajouter aux favoris
             favorites.push({
                 id: announcement.id,
-                title: announcement.titre,
-                price: announcement.prix,
-                image: announcement.image_principale,
-                location: announcement.localisation,
-                category: announcement.categorie,
+                title: announcement.titre || announcement.title,
+                price: announcement.prix || announcement.price,
+                image: announcement.image_principale || announcement.main_image,
+                location: announcement.localisation || announcement.location,
+                category: announcement.categorie || announcement.category,
                 added_at: new Date().toISOString()
             });
             showNotification('❤️ Ajouté aux favoris');
@@ -352,11 +443,44 @@ function updateFavoriteButton(announcementId) {
     }
 }
 
+// MODIFICATION 5: Incrémentation des vues avec Supabase
 /**
  * Incrémente le nombre de vues d'une annonce
  * @param {number} announcementId - ID de l'annonce
  */
-function incrementViews(announcementId) {
+async function incrementViews(announcementId) {
+    try {
+        // Mettre à jour dans Supabase si disponible
+        if (isUsingSupabase && supabaseClient) {
+            const { error } = await supabaseClient.rpc('increment_views', {
+                annonce_id: announcementId
+            });
+            
+            if (!error) {
+                console.log(`✅ Vue incrémentée dans Supabase pour l'annonce ${announcementId}`);
+                return;
+            }
+            
+            // Alternative si la fonction RPC n'existe pas
+            const { data: annonce, error: fetchError } = await supabaseClient
+                .from('annonces')
+                .select('views')
+                .eq('id', announcementId)
+                .single();
+            
+            if (!fetchError && annonce) {
+                const newViews = (annonce.views || 0) + 1;
+                await supabaseClient
+                    .from('annonces')
+                    .update({ views: newViews })
+                    .eq('id', announcementId);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'incrémentation des vues dans Supabase:', error);
+    }
+    
+    // Fallback: Mettre à jour localStorage
     try {
         const localAnnonces = JSON.parse(localStorage.getItem('local_annonces') || '[]');
         const index = localAnnonces.findIndex(a => a.id == announcementId);
@@ -383,12 +507,28 @@ function setupMobileMenu() {
         mobileMenuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             navLinks.classList.toggle('active');
+            // Changer l'icône
+            const icon = mobileMenuBtn.querySelector('i');
+            if (icon) {
+                if (navLinks.classList.contains('active')) {
+                    icon.classList.remove('fa-bars');
+                    icon.classList.add('fa-times');
+                } else {
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                }
+            }
         });
         
         // Fermer en cliquant sur un lien
         document.querySelectorAll('.nav-links a').forEach(link => {
             link.addEventListener('click', () => {
                 navLinks.classList.remove('active');
+                const icon = mobileMenuBtn.querySelector('i');
+                if (icon) {
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                }
             });
         });
         
@@ -396,6 +536,11 @@ function setupMobileMenu() {
         document.addEventListener('click', (e) => {
             if (!navLinks.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
                 navLinks.classList.remove('active');
+                const icon = mobileMenuBtn.querySelector('i');
+                if (icon) {
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                }
             }
         });
 
@@ -403,6 +548,11 @@ function setupMobileMenu() {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 navLinks.classList.remove('active');
+                const icon = mobileMenuBtn.querySelector('i');
+                if (icon) {
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                }
             }
         });
 
@@ -413,10 +563,78 @@ function setupMobileMenu() {
             resizeTimer = setTimeout(() => {
                 if (window.innerWidth > 768) {
                     navLinks.classList.remove('active');
+                    const icon = mobileMenuBtn.querySelector('i');
+                    if (icon) {
+                        icon.classList.remove('fa-times');
+                        icon.classList.add('fa-bars');
+                    }
                 }
             }, 250);
         });
     }
+}
+
+// MODIFICATION 6: Fonction pour obtenir l'utilisateur courant
+/**
+ * Récupère l'utilisateur courant depuis Supabase ou localStorage
+ * @returns {Promise<Object|null>} Utilisateur courant ou null
+ */
+async function getCurrentUser() {
+    // Essayer Supabase d'abord
+    if (isUsingSupabase && supabaseClient) {
+        try {
+            const { data: { user }, error } = await supabaseClient.auth.getUser();
+            if (!error && user) {
+                return {
+                    id: user.id,
+                    email: user.email,
+                    name: user.user_metadata?.nom_complet || user.email
+                };
+            }
+        } catch (e) {
+            console.warn('Erreur récupération utilisateur Supabase:', e);
+        }
+    }
+    
+    // Fallback localStorage
+    try {
+        const session = localStorage.getItem('user_session');
+        if (session) {
+            const sessionData = JSON.parse(session);
+            const sessionAge = Date.now() - new Date(sessionData.created_at).getTime();
+            if (sessionAge < 24 * 60 * 60 * 1000) {
+                return sessionData.user;
+            }
+        }
+    } catch (e) {
+        console.warn('Erreur récupération utilisateur localStorage:', e);
+    }
+    
+    return null;
+}
+
+// MODIFICATION 7: Fonction pour se déconnecter
+/**
+ * Déconnecte l'utilisateur
+ */
+async function logout() {
+    if (isUsingSupabase && supabaseClient) {
+        try {
+            await supabaseClient.auth.signOut();
+            console.log('✅ Déconnexion Supabase réussie');
+        } catch (e) {
+            console.warn('Erreur déconnexion Supabase:', e);
+        }
+    }
+    
+    localStorage.removeItem('user_session');
+    localStorage.removeItem('user_data');
+    
+    showNotification('👋 Vous avez été déconnecté', 'info');
+    
+    setTimeout(() => {
+        window.location.href = 'index.html';
+    }, 1500);
 }
 
 // ============================================================================
@@ -428,6 +646,42 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeMobileNavigation();
     setupMobileMenu();
 });
+
+// Ajouter les animations CSS si non présentes
+if (!document.querySelector('#navigation-styles')) {
+    const style = document.createElement('style');
+    style.id = 'navigation-styles';
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        .notification {
+            font-family: inherit;
+        }
+        .notification-close {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            margin-left: 10px;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+        .notification-close:hover {
+            opacity: 1;
+        }
+        .favorited {
+            background-color: #dc3545 !important;
+            color: white !important;
+        }
+    `;
+    document.head.appendChild(style);
+}
 
 // Exporter les fonctions pour usage global
 window.NavigationHelper = {
@@ -444,7 +698,11 @@ window.NavigationHelper = {
     isFavorite,
     updateFavoriteButton,
     incrementViews,
-    setupMobileMenu
+    setupMobileMenu,
+    getCurrentUser,
+    logout,
+    isSupabaseAvailable: () => isUsingSupabase
 };
 
 console.log('✅ Script navigation.js chargé - Fonctions partagées disponibles');
+console.log(`🔗 Connexion Supabase configurée avec l'URL: ${SUPABASE_URL}`);

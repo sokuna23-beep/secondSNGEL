@@ -6,12 +6,52 @@
  * Fichier centralisé contenant les fonctions réutilisables
  * pour l'ensemble de l'application Sénégal Élevage.
  * 
+ * Version: 2.0.0
+ * 
  * Avantages:
  * - Évite la duplication de code
  * - Maintenance simplifiée
  * - Cohérence garantie dans l'application
  * - Extensibilité facilitée
  */
+
+// ============================================================
+// 0. CONFIGURATION SUPABASE (intégrée)
+// ============================================================
+
+// MODIFICATION 1: Ajout de la configuration Supabase centralisée
+const UTILS_SUPABASE_URL = 'https://mykmnwdeqwtpnnsvnlkf.supabase.co';
+const UTILS_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15a21ud2RlcXd0cG5uc3ZubGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mjg5NzEsImV4cCI6MjA5MjUwNDk3MX0.Im2wNcNeRIH4ToI694EWvVQ4N5pW5FcukP_kFjuUHag';
+
+// Variables globales utilitaires
+let utilsSupabaseClient = null;
+let utilsIsSupabaseReady = false;
+
+// Initialisation de Supabase pour les utilitaires
+function initUtilsSupabase() {
+    try {
+        if (typeof window.supabase !== 'undefined') {
+            utilsSupabaseClient = window.supabase.createClient(UTILS_SUPABASE_URL, UTILS_SUPABASE_ANON_KEY);
+            utilsIsSupabaseReady = true;
+            console.log('✅ Supabase initialisé depuis utils.js');
+            return true;
+        } else if (window.supabaseClient) {
+            utilsSupabaseClient = window.supabaseClient;
+            utilsIsSupabaseReady = true;
+            return true;
+        }
+    } catch (error) {
+        console.warn('⚠️ Supabase non disponible dans utils.js');
+    }
+    return false;
+}
+
+// Initialisation automatique
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initUtilsSupabase);
+} else {
+    initUtilsSupabase();
+}
 
 // ============================================================
 // 1. GESTION DES NOTIFICATIONS
@@ -30,6 +70,16 @@ function showNotification(message, type = 'info', duration = 3000) {
         container = document.createElement('div');
         container.id = 'messageContainer';
         container.className = 'message-container';
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 350px;
+        `;
         document.body.appendChild(container);
     }
 
@@ -52,23 +102,66 @@ function showNotification(message, type = 'info', duration = 3000) {
             icon = '<i class="fas fa-info-circle"></i>';
     }
     
+    const colors = {
+        success: '#4caf50',
+        error: '#f44336',
+        warning: '#ff9800',
+        info: '#2196f3'
+    };
+    
+    notification.style.cssText = `
+        background: ${colors[type]};
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        animation: slideInRight 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        font-size: 14px;
+    `;
+    
     notification.innerHTML = `
-        <div class="notification-content">
+        <div class="notification-content" style="display: flex; align-items: center; gap: 10px;">
             ${icon}
             <span>${message}</span>
         </div>
-        <button class="notification-close" onclick="this.parentElement.remove()">
+        <button class="notification-close" style="background: none; border: none; color: white; cursor: pointer; font-size: 14px;">
             <i class="fas fa-times"></i>
         </button>
     `;
+    
+    const closeBtn = notification.querySelector('.notification-close');
+    closeBtn.addEventListener('click', () => notification.remove());
     
     container.appendChild(notification);
     
     // Auto-remove après la durée spécifiée
     setTimeout(() => {
-        notification.classList.add('fade-out');
-        setTimeout(() => notification.remove(), 300);
+        if (notification.parentElement) {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }
     }, duration);
+}
+
+// Ajouter les animations CSS si non présentes
+if (!document.querySelector('#utils-notification-styles')) {
+    const style = document.createElement('style');
+    style.id = 'utils-notification-styles';
+    style.textContent = `
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 // ============================================================
@@ -91,9 +184,21 @@ function validateEmail(email) {
  * @returns {boolean} true si valide
  */
 function validatePhoneSenegal(phone) {
-    // Format: 77 123 45 67 ou 221771234567
-    const regex = /^(\+221|0|221)?[6-9]\d{8}$/;
-    return regex.test(phone.replace(/\s/g, ''));
+    const clean = phone.replace(/\s/g, '');
+    const regex = /^(?:\+221|0)?(77|76|70|78|33)\d{7}$/;
+    return regex.test(clean);
+}
+
+// MODIFICATION 2: Ajout validation générique
+/**
+ * Valide un numéro de téléphone (format international)
+ * @param {string} phone - Le numéro à valider
+ * @returns {boolean} true si valide
+ */
+function validatePhone(phone) {
+    const clean = phone.replace(/[\s\-\(\)\+]/g, '');
+    const regex = /^[0-9]{9,15}$/;
+    return regex.test(clean);
 }
 
 /**
@@ -104,21 +209,12 @@ function validatePhoneSenegal(phone) {
 function validatePasswordStrength(password) {
     let score = 0;
     
-    // Longueur
     if (password.length >= 8) score += 20;
     if (password.length >= 12) score += 10;
-    
-    // Majuscules
     if (/[A-Z]/.test(password)) score += 20;
-    
-    // Minuscules
     if (/[a-z]/.test(password)) score += 20;
-    
-    // Nombres
     if (/[0-9]/.test(password)) score += 15;
-    
-    // Caractères spéciaux
-    if (/[!@#$%^&*()_+=\-[\]{};':"\\|,.<>/?]/.test(password)) score += 15;
+    if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) score += 15;
     
     let strength = 'weak';
     if (score >= 50 && score < 75) strength = 'medium';
@@ -160,6 +256,7 @@ function validateForm(form) {
 function saveToLocalStorage(key, value) {
     try {
         localStorage.setItem(key, JSON.stringify(value));
+        console.log(`💾 Sauvegardé: ${key}`);
     } catch (e) {
         console.error('Erreur lors de la sauvegarde:', e);
     }
@@ -226,7 +323,8 @@ function getUrlParameter(paramName) {
 function setUrlParameter(paramName, paramValue) {
     const params = new URLSearchParams(window.location.search);
     params.set(paramName, paramValue);
-    window.history.pushState({}, '', `${window.location.pathname}?${params}`);
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({}, '', newUrl);
 }
 
 /**
@@ -236,7 +334,8 @@ function setUrlParameter(paramName, paramValue) {
 function removeUrlParameter(paramName) {
     const params = new URLSearchParams(window.location.search);
     params.delete(paramName);
-    window.history.pushState({}, '', `${window.location.pathname}?${params}`);
+    const newUrl = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname;
+    window.history.pushState({}, '', newUrl);
 }
 
 // ============================================================
@@ -250,7 +349,10 @@ function removeUrlParameter(paramName) {
  * @returns {string} Date formatée
  */
 function formatDate(date, withTime = false) {
+    if (!date) return 'Date inconnue';
     const d = new Date(date);
+    if (isNaN(d.getTime())) return 'Date invalide';
+    
     const options = {
         year: 'numeric',
         month: '2-digit',
@@ -272,6 +374,7 @@ function formatDate(date, withTime = false) {
  * @returns {string} Nombre formaté
  */
 function formatNumber(num, decimals = 0) {
+    if (isNaN(num)) return '0';
     return parseFloat(num).toLocaleString('fr-FR', {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals
@@ -284,7 +387,20 @@ function formatNumber(num, decimals = 0) {
  * @returns {string} Montant formaté (ex: "25 000 FCFA")
  */
 function formatCFA(amount) {
+    if (!amount && amount !== 0) return 'Prix sur demande';
     return formatNumber(amount, 0) + ' FCFA';
+}
+
+/**
+ * Formate un prix avec devise
+ * @param {number} price - Le prix
+ * @param {string} currency - La devise (default: 'XOF')
+ * @returns {string} Prix formaté
+ */
+function formatPrice(price, currency = 'XOF') {
+    if (!price && price !== 0) return 'Prix sur demande';
+    if (currency === 'XOF') return formatCFA(price);
+    return `${formatNumber(price, 0)} ${currency}`;
 }
 
 /**
@@ -294,6 +410,7 @@ function formatCFA(amount) {
  * @returns {string} Texte tronqué
  */
 function truncateText(text, length = 100) {
+    if (!text) return '';
     if (text.length <= length) return text;
     return text.substring(0, length).trim() + '...';
 }
@@ -304,6 +421,7 @@ function truncateText(text, length = 100) {
  * @returns {string} Texte nettoyé
  */
 function cleanText(text) {
+    if (!text) return '';
     return text.trim().replace(/\s+/g, ' ');
 }
 
@@ -319,6 +437,7 @@ function cleanText(text) {
  * @returns {array} Tableau filtré
  */
 function filterByKey(array, key, value) {
+    if (!array || !Array.isArray(array)) return [];
     return array.filter(item => item[key] === value);
 }
 
@@ -330,6 +449,7 @@ function filterByKey(array, key, value) {
  * @returns {array} Tableau trié
  */
 function sortByKey(array, key, order = 'asc') {
+    if (!array || !Array.isArray(array)) return [];
     return array.slice().sort((a, b) => {
         if (a[key] < b[key]) return order === 'asc' ? -1 : 1;
         if (a[key] > b[key]) return order === 'asc' ? 1 : -1;
@@ -344,9 +464,8 @@ function sortByKey(array, key, order = 'asc') {
  * @returns {array} Tableau sans doublons
  */
 function removeDuplicates(array, key = null) {
-    if (!key) {
-        return [...new Set(array)];
-    }
+    if (!array || !Array.isArray(array)) return [];
+    if (!key) return [...new Set(array)];
     return Array.from(new Map(array.map(item => [item[key], item])).values());
 }
 
@@ -357,6 +476,7 @@ function removeDuplicates(array, key = null) {
  * @returns {object} Objet regroupé
  */
 function groupByKey(array, key) {
+    if (!array || !Array.isArray(array)) return {};
     return array.reduce((acc, item) => {
         const group = item[key];
         if (!acc[group]) acc[group] = [];
@@ -370,47 +490,31 @@ function groupByKey(array, key) {
 // ============================================================
 
 /**
- * Ajoute une classe à un élément avec animation
- * @param {HTMLElement} element - L'élément
- * @param {string} className - La classe CSS
+ * Attend que le DOM soit chargé
+ * @param {Function} callback - Fonction à exécuter
  */
-function addClassAnimated(element, className) {
-    element.classList.add(className);
-}
-
-/**
- * Supprime une classe d'un élément
- * @param {HTMLElement} element - L'élément
- * @param {string} className - La classe CSS
- */
-function removeClassAnimated(element, className) {
-    element.classList.remove(className);
-}
-
-/**
- * Affiche/cache un élément avec transition
- * @param {HTMLElement} element - L'élément
- * @param {boolean} show - Afficher ou cacher
- * @param {number} duration - Durée en ms
- */
-function toggleVisibility(element, show = true, duration = 300) {
-    if (show) {
-        element.style.display = 'block';
-        setTimeout(() => element.classList.add('visible'), 10);
+function domReady(callback) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', callback);
     } else {
-        element.classList.remove('visible');
-        setTimeout(() => element.style.display = 'none', duration);
+        callback();
     }
 }
 
 /**
- * Clone un élément DOM
- * @param {HTMLElement} element - L'élément à cloner
- * @param {boolean} deep - Clone profond (default: true)
- * @returns {HTMLElement} Clone de l'élément
+ * Crée un élément avec des attributs
+ * @param {string} tag - Tag HTML
+ * @param {object} attributes - Attributs à ajouter
+ * @param {string} innerHTML - Contenu HTML
+ * @returns {HTMLElement}
  */
-function cloneElement(element, deep = true) {
-    return element.cloneNode(deep);
+function createElement(tag, attributes = {}, innerHTML = '') {
+    const element = document.createElement(tag);
+    Object.entries(attributes).forEach(([key, value]) => {
+        element.setAttribute(key, value);
+    });
+    if (innerHTML) element.innerHTML = innerHTML;
+    return element;
 }
 
 // ============================================================
@@ -418,50 +522,19 @@ function cloneElement(element, deep = true) {
 // ============================================================
 
 /**
- * Effectue une requête fetch avec gestion d'erreur
- * @param {string} url - L'URL de la requête
- * @param {object} options - Options fetch
- * @returns {Promise} Response ou erreur
+ * Vérifie si l'utilisateur est en ligne
+ * @returns {boolean}
  */
-async function safeFetch(url, options = {}) {
-    try {
-        const response = await fetch(url, options);
-        if (!response.ok) {
-            throw new Error(`Erreur HTTP: ${response.status}`);
-        }
-        return response;
-    } catch (error) {
-        console.error('Erreur fetch:', error);
-        showNotification('Erreur de connexion. Veuillez réessayer.', 'error');
-        throw error;
-    }
+function isOnline() {
+    return navigator.onLine;
 }
 
 /**
- * Récupère les données JSON avec gestion d'erreur
- * @param {string} url - L'URL
- * @returns {Promise<object>} Les données JSON
+ * Vérifie si Supabase est disponible
+ * @returns {boolean}
  */
-async function fetchJSON(url) {
-    const response = await safeFetch(url);
-    return response.json();
-}
-
-/**
- * Envoie des données POST
- * @param {string} url - L'URL
- * @param {object} data - Les données à envoyer
- * @returns {Promise<object>} La réponse
- */
-async function postJSON(url, data) {
-    const response = await safeFetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    });
-    return response.json();
+function isSupabaseAvailable() {
+    return utilsIsSupabaseReady && utilsSupabaseClient !== null;
 }
 
 // ============================================================
@@ -474,6 +547,7 @@ async function postJSON(url, data) {
  * @returns {string} Texte échappé
  */
 function escapeHTML(text) {
+    if (!text) return '';
     const map = {
         '&': '&amp;',
         '<': '&lt;',
@@ -511,7 +585,105 @@ function generateUUID() {
 }
 
 // ============================================================
-// 10. UTILITAIRES DE DEBUG
+// 10. GESTION DES FAVORIS (utilitaires)
+// ============================================================
+
+// MODIFICATION 3: Ajout des fonctions de gestion des favoris
+/**
+ * Récupère la liste des favoris de l'utilisateur
+ * @returns {Array} Liste des favoris
+ */
+function getFavorites() {
+    return getFromLocalStorage('user_favorites', []);
+}
+
+/**
+ * Ajoute une annonce aux favoris
+ * @param {Object} annonce - L'annonce à ajouter
+ */
+function addToFavorites(annonce) {
+    const favorites = getFavorites();
+    if (!favorites.some(fav => fav.id === annonce.id)) {
+        favorites.push({
+            id: annonce.id,
+            title: annonce.titre || annonce.title,
+            price: annonce.prix || annonce.price,
+            image: annonce.image_principale || annonce.main_image,
+            location: annonce.localisation || annonce.location,
+            added_at: new Date().toISOString()
+        });
+        saveToLocalStorage('user_favorites', favorites);
+        showNotification('❤️ Ajouté aux favoris', 'success');
+    }
+}
+
+/**
+ * Supprime une annonce des favoris
+ * @param {number} annonceId - ID de l'annonce
+ */
+function removeFromFavorites(annonceId) {
+    const favorites = getFavorites().filter(fav => fav.id !== annonceId);
+    saveToLocalStorage('user_favorites', favorites);
+    showNotification('💔 Retiré des favoris', 'info');
+}
+
+/**
+ * Vérifie si une annonce est dans les favoris
+ * @param {number} annonceId - ID de l'annonce
+ * @returns {boolean}
+ */
+function isFavorite(annonceId) {
+    return getFavorites().some(fav => fav.id === annonceId);
+}
+
+// ============================================================
+// 11. GESTION DE LA SESSION UTILISATEUR
+// ============================================================
+
+// MODIFICATION 4: Ajout de la gestion de session
+/**
+ * Récupère l'utilisateur courant depuis la session
+ * @returns {Object|null}
+ */
+function getCurrentSessionUser() {
+    const session = getFromLocalStorage('user_session', null);
+    if (session && session.user) {
+        const sessionAge = Date.now() - new Date(session.created_at).getTime();
+        if (sessionAge < 24 * 60 * 60 * 1000) {
+            return session.user;
+        }
+    }
+    return null;
+}
+
+/**
+ * Sauvegarde la session utilisateur
+ * @param {Object} user - L'utilisateur
+ * @param {boolean} rememberMe - Rester connecté
+ */
+function saveUserSession(user, rememberMe = false) {
+    const session = {
+        user: user,
+        created_at: new Date().toISOString(),
+        remember_me: rememberMe
+    };
+    saveToLocalStorage('user_session', session);
+}
+
+/**
+ * Déconnecte l'utilisateur
+ */
+function logoutUser() {
+    removeFromLocalStorage('user_session');
+    removeFromLocalStorage('user_data');
+    showNotification('👋 Vous avez été déconnecté', 'info');
+    setTimeout(() => {
+        window.location.href = 'index.html';
+    }, 1500);
+}
+
+// ============================================================
+// 12. UTILITAIRES DE DEBUG
 // ============================================================
 
 /**
@@ -521,7 +693,11 @@ function generateUUID() {
  */
 function debugLog(message, data = null) {
     const timestamp = new Date().toLocaleTimeString('fr-FR');
-    console.log(`[${timestamp}] ${message}`, data || '');
+    if (data !== null) {
+        console.log(`[${timestamp}] ${message}`, data);
+    } else {
+        console.log(`[${timestamp}] ${message}`);
+    }
 }
 
 /**
@@ -530,37 +706,108 @@ function debugLog(message, data = null) {
  * @param {Error} error - L'erreur
  */
 function debugError(context, error) {
-    console.error(`[ERREUR] ${context}:`, error);
+    console.error(`[ERREUR] ${context}:`, error.message || error);
 }
 
 // ============================================================
-// 11. EXTENSIONS PROTOTYPES (utiliser avec prudence)
+// 13. EXTENSIONS PROTOTYPES (utiliser avec prudence)
 // ============================================================
 
 /**
  * Capitalize une chaîne
- * String.prototype.capitalize()
  */
 if (!String.prototype.capitalize) {
     String.prototype.capitalize = function() {
-        return this.charAt(0).toUpperCase() + this.slice(1);
+        if (!this.length) return this;
+        return this.charAt(0).toUpperCase() + this.slice(1).toLowerCase();
     };
 }
 
 /**
  * Delay pour async/await
- * await delay(1000)
+ * @param {number} ms - Millisecondes à attendre
+ * @returns {Promise}
  */
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // ============================================================
-// EXPORT (pour modules si nécessaire)
+// 14. EXPORT GLOBAL (pour usage dans tous les scripts)
 // ============================================================
 
-// Utilisation: 
-// import { showNotification, validateEmail } from './utils.js'
-// En HTML: <script src="utils.js"></script> puis utiliser directement
+// MODIFICATION 5: Export global des fonctions utilitaires
+window.Utils = {
+    // Notifications
+    showNotification,
+    
+    // Validation
+    validateEmail,
+    validatePhone,
+    validatePhoneSenegal,
+    validatePasswordStrength,
+    validateForm,
+    
+    // Storage
+    saveToLocalStorage,
+    getFromLocalStorage,
+    removeFromLocalStorage,
+    clearLocalStorage,
+    
+    // URL
+    getUrlParameter,
+    setUrlParameter,
+    removeUrlParameter,
+    
+    // Formatage
+    formatDate,
+    formatNumber,
+    formatCFA,
+    formatPrice,
+    truncateText,
+    cleanText,
+    
+    // Tableaux
+    filterByKey,
+    sortByKey,
+    removeDuplicates,
+    groupByKey,
+    
+    // DOM
+    domReady,
+    createElement,
+    
+    // Réseau
+    isOnline,
+    isSupabaseAvailable,
+    
+    // Sécurité
+    escapeHTML,
+    validateURL,
+    generateUUID,
+    
+    // Favoris
+    getFavorites,
+    addToFavorites,
+    removeFromFavorites,
+    isFavorite,
+    
+    // Session
+    getCurrentSessionUser,
+    saveUserSession,
+    logoutUser,
+    
+    // Debug
+    debugLog,
+    debugError,
+    
+    // Utilitaires
+    delay,
+    
+    // Supabase
+    supabaseClient: () => utilsSupabaseClient,
+    supabaseReady: () => utilsIsSupabaseReady
+};
 
-// Fin du fichier utils.js
+console.log('✅ utils.js chargé - Fonctions utilitaires disponibles');
+console.log(`📡 Supabase: ${utilsIsSupabaseReady ? 'Connecté' : 'Hors ligne'}`);

@@ -1,154 +1,329 @@
--- Structure de la base de données pour Sénégal Élevage
--- Créez cette base de données avec : CREATE DATABASE senegal_elevage;
+-- =====================================================
+-- SÉNÉGAL ÉLEVAGE - STRUCTURE COMPLÈTE SUPABASE
+-- Version: 3.0.0
+-- Compatible avec TOUS les scripts JS corrigés
+-- =====================================================
 
--- Utilisation de la base de données
-USE senegal_elevage;
+-- =====================================================
+-- 1. CRÉATION DES TYPES ÉNUMÉRÉS
+-- =====================================================
 
--- Table des annonces
+CREATE TYPE categorie_type AS ENUM ('volaille', 'bovins', 'ovins', 'materiaux', 'produits', 'services', 'animaux');
+CREATE TYPE sous_categorie_type AS ENUM ('betail', 'volaille', 'caprins', 'camelins', 'porcins');
+CREATE TYPE region_type AS ENUM ('dakar', 'thies', 'kaolack', 'saint-louis', 'tambacounda', 'louga', 'fatick', 'kolda', 'ziguinchor', 'sedhiou', 'kedougou', 'matam', 'diourbel');
+CREATE TYPE status_type AS ENUM ('actif', 'inactif', 'vendu', 'supprime', 'pending');
+CREATE TYPE role_type AS ENUM ('eleveur', 'admin');
+CREATE TYPE message_status_type AS ENUM ('non_lu', 'lu', 'repondu');
+
+-- =====================================================
+-- 2. TABLE DES PROFILS UTILISATEURS (liée à auth.users)
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS eleveurs (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+    nom_complet TEXT NOT NULL,
+    telephone TEXT,
+    email TEXT UNIQUE NOT NULL,
+    region TEXT,
+    ville TEXT,
+    bio TEXT,
+    role role_type DEFAULT 'eleveur',
+    status status_type DEFAULT 'actif',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- 3. TABLE DES ANNONCES
+-- =====================================================
+
 CREATE TABLE IF NOT EXISTS annonces (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    titre VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    categorie ENUM('volaille', 'bovins', 'ovins', 'materiaux', 'produits', 'services') NOT NULL,
-    prix DECIMAL(10,2) NOT NULL,
-    localisation VARCHAR(255) NOT NULL,
-    region ENUM('dakar', 'thies', 'kaolack', 'saint-louis', 'tambacounda', 'louga', 'fatick', 'kolda', 'ziguinchor', 'sedhiou', 'kedougou', 'matam', 'diourbel') NOT NULL,
-    nom VARCHAR(255) NOT NULL,
-    telephone VARCHAR(20) NOT NULL,
-    email VARCHAR(255),
-    images JSON, -- Stocke les chemins des images en format JSON
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('actif', 'inactif', 'vendu', 'supprime') DEFAULT 'actif',
-    views INT DEFAULT 0,
-    INDEX idx_categorie (categorie),
-    INDEX idx_region (region),
-    INDEX idx_status (status),
-    INDEX idx_created_at (created_at),
-    INDEX idx_prix (prix)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table des utilisateurs (optionnel pour la gestion des comptes)
-CREATE TABLE IF NOT EXISTS utilisateurs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nom VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    telephone VARCHAR(20),
-    password_hash VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'eleveur', 'acheteur') DEFAULT 'eleveur',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP NULL,
-    status ENUM('actif', 'inactif', 'banni') DEFAULT 'actif',
-    INDEX idx_email (email),
-    INDEX idx_role (role)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table des catégories (pour plus de flexibilité)
-CREATE TABLE IF NOT EXISTS categories (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL UNIQUE,
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    titre TEXT NOT NULL,
     description TEXT,
-    icone VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    prix DECIMAL(10, 2),
+    devise TEXT DEFAULT 'XOF',
+    categorie categorie_type,
+    sous_categorie TEXT,
+    localisation TEXT,
+    region TEXT,
+    image_principale TEXT,
+    images TEXT[] DEFAULT '{}',
+    telephone TEXT,
+    nom_vendeur TEXT,
+    email TEXT,
+    entreprise TEXT,
+    etat_produit TEXT,
+    livraison_possible BOOLEAN DEFAULT FALSE,
+    prix_negociable BOOLEAN DEFAULT FALSE,
+    annonce_urgente BOOLEAN DEFAULT FALSE,
+    type_annonce TEXT,
+    status status_type DEFAULT 'actif',
+    views INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Insertion des catégories par défaut
-INSERT INTO categories (nom, description, icone) VALUES
-('volaille', 'Poules, canards, dindes, pintades', '🐔'),
-('bovins', 'Vaches, taureaux, veaux, bœufs', '🐄'),
-('ovins', 'Moutons, chèvres, béliers', '🐑'),
-('materiaux', 'Matériel d\'élevage, abris, équipements', '🔧'),
-('produits', 'Lait, viande, œufs, fromages, cuir', '🥛'),
-('services', 'Services vétérinaires, transport, conseil', '🤝');
+-- =====================================================
+-- 4. TABLE DES MESSAGES DE CONTACT
+-- =====================================================
 
--- Table des messages (pour la communication entre utilisateurs)
 CREATE TABLE IF NOT EXISTS messages (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    annonce_id INT NOT NULL,
-    expediteur_id INT,
-    destinataire_id INT,
+    id SERIAL PRIMARY KEY,
+    nom TEXT NOT NULL,
+    email TEXT NOT NULL,
+    telephone TEXT,
+    sujet TEXT,
     message TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    lu BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (annonce_id) REFERENCES annonces(id) ON DELETE CASCADE,
-    FOREIGN KEY (expediteur_id) REFERENCES utilisateurs(id) ON DELETE SET NULL,
-    FOREIGN KEY (destinataire_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
-    INDEX idx_annonce (annonce_id),
-    INDEX idx_expediteur (expediteur_id),
-    INDEX idx_destinataire (destinataire_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    status message_status_type DEFAULT 'non_lu',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Table des statistiques de visites
-CREATE TABLE IF NOT EXISTS statistiques_visites (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    annonce_id INT NOT NULL,
-    ip VARCHAR(45),
-    user_agent TEXT,
-    date_visite TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (annonce_id) REFERENCES annonces(id) ON DELETE CASCADE,
-    INDEX idx_annonce (annonce_id),
-    INDEX idx_date (date_visite)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =====================================================
+-- 5. TABLE DES FAVORIS
+-- =====================================================
 
--- Vue pour les annonces actives avec informations complètes
-CREATE VIEW v_annonces_actives AS
+CREATE TABLE IF NOT EXISTS favoris (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    annonce_id INTEGER REFERENCES annonces(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, annonce_id)
+);
+
+-- =====================================================
+-- 6. TABLE DES SERVICES
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS services (
+    id SERIAL PRIMARY KEY,
+    titre TEXT NOT NULL,
+    description TEXT,
+    prix DECIMAL(10, 2),
+    devise TEXT DEFAULT 'XOF',
+    categorie TEXT,
+    prestataire TEXT,
+    localisation TEXT,
+    region TEXT,
+    telephone TEXT,
+    disponibilite TEXT,
+    note DECIMAL(3,1) DEFAULT 4.5,
+    nombre_avis INTEGER DEFAULT 0,
+    certifie BOOLEAN DEFAULT FALSE,
+    urgent BOOLEAN DEFAULT FALSE,
+    status status_type DEFAULT 'actif',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- 7. TABLE DES PARAMÈTRES DU SITE
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS site_settings (
+    id SERIAL PRIMARY KEY,
+    key TEXT UNIQUE NOT NULL,
+    value TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- 8. TABLE DES LOGS ADMIN
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS admin_logs (
+    id SERIAL PRIMARY KEY,
+    admin_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    target_type TEXT,
+    target_id TEXT,
+    details JSONB,
+    ip_address TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- 9. INDEX POUR OPTIMISER LES PERFORMANCES
+-- =====================================================
+
+CREATE INDEX IF NOT EXISTS idx_eleveurs_user_id ON eleveurs(user_id);
+CREATE INDEX IF NOT EXISTS idx_eleveurs_email ON eleveurs(email);
+CREATE INDEX IF NOT EXISTS idx_annonces_user_id ON annonces(user_id);
+CREATE INDEX IF NOT EXISTS idx_annonces_status ON annonces(status);
+CREATE INDEX IF NOT EXISTS idx_annonces_categorie ON annonces(categorie);
+CREATE INDEX IF NOT EXISTS idx_annonces_sous_categorie ON annonces(sous_categorie);
+CREATE INDEX IF NOT EXISTS idx_annonces_region ON annonces(region);
+CREATE INDEX IF NOT EXISTS idx_annonces_created_at ON annonces(created_at);
+CREATE INDEX IF NOT EXISTS idx_annonces_prix ON annonces(prix);
+CREATE INDEX IF NOT EXISTS idx_annonces_recherche ON annonces(titre, description, localisation);
+CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_favoris_user_id ON favoris(user_id);
+CREATE INDEX IF NOT EXISTS idx_favoris_annonce_id ON favoris(annonce_id);
+CREATE INDEX IF NOT EXISTS idx_services_categorie ON services(categorie);
+CREATE INDEX IF NOT EXISTS idx_services_region ON services(region);
+CREATE INDEX IF NOT EXISTS idx_services_status ON services(status);
+
+-- =====================================================
+-- 10. FONCTION POUR METTRE À JOUR updated_at
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =====================================================
+-- 11. TRIGGERS POUR updated_at AUTOMATIQUE
+-- =====================================================
+
+CREATE TRIGGER update_eleveurs_updated_at
+    BEFORE UPDATE ON eleveurs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_annonces_updated_at
+    BEFORE UPDATE ON annonces
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_services_updated_at
+    BEFORE UPDATE ON services
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================================================
+-- 12. FONCTION POUR INCRÉMENTER LES VUES
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION increment_views(annonce_id_param INTEGER)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE annonces SET views = views + 1 WHERE id = annonce_id_param;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =====================================================
+-- 13. ROW LEVEL SECURITY (RLS) - SÉCURITÉ
+-- =====================================================
+
+-- Activer RLS sur toutes les tables
+ALTER TABLE eleveurs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE annonces ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE favoris ENABLE ROW LEVEL SECURITY;
+ALTER TABLE services ENABLE ROW LEVEL SECURITY;
+
+-- Politiques pour eleveurs
+CREATE POLICY "Les utilisateurs peuvent voir leur propre profil"
+    ON eleveurs FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Les utilisateurs peuvent modifier leur propre profil"
+    ON eleveurs FOR UPDATE
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Les utilisateurs peuvent insérer leur propre profil"
+    ON eleveurs FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+-- Politiques pour annonces
+CREATE POLICY "Tout le monde peut voir les annonces actives"
+    ON annonces FOR SELECT
+    USING (status = 'actif');
+
+CREATE POLICY "Les utilisateurs peuvent voir leurs propres annonces"
+    ON annonces FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Les utilisateurs peuvent créer des annonces"
+    ON annonces FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Les utilisateurs peuvent modifier leurs annonces"
+    ON annonces FOR UPDATE
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Les utilisateurs peuvent supprimer leurs annonces"
+    ON annonces FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- Politiques pour messages
+CREATE POLICY "Tout le monde peut envoyer des messages"
+    ON messages FOR INSERT
+    WITH CHECK (true);
+
+CREATE POLICY "Seuls les admins peuvent voir les messages"
+    ON messages FOR SELECT
+    USING (auth.role() = 'authenticated');
+
+-- Politiques pour favoris
+CREATE POLICY "Les utilisateurs peuvent voir leurs favoris"
+    ON favoris FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Les utilisateurs peuvent gérer leurs favoris"
+    ON favoris FOR ALL
+    USING (auth.uid() = user_id);
+
+-- Politiques pour services
+CREATE POLICY "Tout le monde peut voir les services actifs"
+    ON services FOR SELECT
+    USING (status = 'actif');
+
+-- =====================================================
+-- 14. INSERTION DES DONNÉES PAR DÉFAUT
+-- =====================================================
+
+-- Insertion des paramètres du site
+INSERT INTO site_settings (key, value) VALUES 
+    ('contact_phone', '+221 33 800 00 00'),
+    ('contact_email', 'contact@senegal-elevage.sn'),
+    ('contact_address', 'Dakar, Sénégal'),
+    ('site_name', 'Sénégal Élevage'),
+    ('site_description', 'La première plateforme d\'annonces pour l\'élevage au Sénégal')
+ON CONFLICT (key) DO NOTHING;
+
+-- Insertion des services par défaut
+INSERT INTO services (titre, description, prix, categorie, prestataire, localisation, region, telephone, disponibilite, note, nombre_avis, certifie, urgent) VALUES
+('Consultation vétérinaire à domicile', 'Consultation complète de vos animaux à domicile : diagnostic, traitement et conseils préventifs.', 15000, 'veterinaire', 'Dr. Mamadou Ba', 'Dakar', 'dakar', '+221 77 123 45 67', '24h', 4.8, 156, true, true),
+('Transport de bétail national', 'Transport sécurisé de votre bétail dans toutes les régions du Sénégal. Véhicules spécialisés.', 25000, 'transport', 'TransÉlevage Pro', 'Dakar', 'dakar', '+221 77 345 67 89', 'immediate', 4.7, 234, true, true),
+('Formation en élevage moderne', 'Formation complète de 3 jours sur les techniques modernes d\'élevage et gestion.', 50000, 'conseil', 'École Supérieure d\'Élevage', 'Dakar', 'dakar', '+221 33 800 00 00', 'week', 4.8, 112, true, false)
+ON CONFLICT DO NOTHING;
+
+-- =====================================================
+-- 15. VUES UTILES (optionnelles)
+-- =====================================================
+
+-- Vue des annonces actives avec infos vendeur
+CREATE OR REPLACE VIEW v_annonces_actives AS
 SELECT 
-    a.id,
-    a.titre,
-    a.description,
-    a.categorie,
-    a.prix,
-    a.localisation,
-    a.region,
-    a.nom,
-    a.telephone,
-    a.email,
-    a.images,
-    a.created_at,
-    a.updated_at,
-    a.status,
-    a.views,
-    c.nom as nom_categorie,
-    c.icone as icone_categorie
+    a.*,
+    e.nom_complet as vendeur_nom,
+    e.telephone as vendeur_telephone,
+    e.region as vendeur_region
 FROM annonces a
-LEFT JOIN categories c ON a.categorie = c.nom
+LEFT JOIN eleveurs e ON a.user_id = e.user_id
 WHERE a.status = 'actif'
 ORDER BY a.created_at DESC;
 
--- Procédure stockée pour incrémenter les vues
-DELIMITER //
-CREATE PROCEDURE incrementer_vues(IN annonce_id_param INT)
-BEGIN
-    UPDATE annonces 
-    SET views = views + 1 
-    WHERE id = annonce_id_param;
-    
-    -- Insérer dans les statistiques
-    INSERT INTO statistiques_visites (annonce_id, ip, user_agent)
-    VALUES (annonce_id_param, CONNECTION_ID(), USER());
-END //
-DELIMITER ;
+-- Vue des statistiques par catégorie
+CREATE OR REPLACE VIEW v_stats_categories AS
+SELECT 
+    categorie,
+    COUNT(*) as total_annonces,
+    SUM(views) as total_vues,
+    AVG(prix) as prix_moyen
+FROM annonces
+WHERE status = 'actif'
+GROUP BY categorie;
 
--- Trigger pour mettre à jour le champ updated_at
-DELIMITER //
-CREATE TRIGGER before_annonces_update 
-BEFORE UPDATE ON annonces
-FOR EACH ROW
-BEGIN
-    SET NEW.updated_at = CURRENT_TIMESTAMP;
-END //
-DELIMITER ;
+-- =====================================================
+-- FIN DU SCRIPT
+-- =====================================================
 
--- Exemples de données de test
-INSERT INTO annonces (titre, description, categorie, prix, localisation, region, nom, telephone, email, images) VALUES
-('Poules pondeuses de race', 'Magnifiques poules pondeuses de 6 mois, très productives. Vaccinées et en parfaite santé. Prix par unité.', 'volaille', 5000.00, 'Dakar, Plateau', 'dakar', 'Mamadou Diallo', '+221 77 123 45 67', 'mamadou@email.com', '["uploads/poule1.jpg", "uploads/poule2.jpg"]'),
-('Vaches laitières Holstein', 'Vaches laitières Holstein de 2 ans, excellentes productrices. Enregistrements sanitaires complets.', 'bovins', 350000.00, 'Thiès, Mbour', 'thies', 'Alioune Faye', '+221 76 987 65 43', 'alioune@email.com', '["uploads/vache1.jpg"]'),
-('Moutons de race Djallonké', 'Béliers Djallonké de qualité supérieure, parfaits pour la reproduction. Robustes et adaptés au climat sénégalais.', 'ovins', 45000.00, 'Kaolack', 'kaolack', 'Oumar Sarr', '+221 78 234 56 78', 'oumar@email.com', '["uploads/mouton1.jpg", "uploads/mouton2.jpg", "uploads/mouton3.jpg"]');
-
--- Index pour optimiser les performances
-CREATE INDEX idx_annonces_recherche ON annonces(titre, description, localisation);
-CREATE INDEX idx_annonces_filtres ON annonces(categorie, region, status, prix);
-
--- Configuration des permissions (à adapter selon votre environnement)
--- GRANT ALL PRIVILEGES ON senegal_elevage.* TO 'votre_utilisateur'@'localhost' IDENTIFIED BY 'votre_mot_de_passe';
--- FLUSH PRIVILEGES;
+-- Vérification finale
+SELECT '✅ Base de données prête !' as status;
+SELECT COUNT(*) as tables_creees FROM information_schema.tables WHERE table_schema = 'public';

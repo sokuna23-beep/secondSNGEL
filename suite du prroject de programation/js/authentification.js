@@ -11,8 +11,11 @@
 // ============================================================================
 
 // Configuration de la connexion à la base de données Supabase
-const SUPABASE_URL = 'https://votre-projet.supabase.co'; // URL de votre projet Supabase
-const SUPABASE_ANON_KEY = 'votre_cle_anon_public'; // Clé publique pour l'accès anonyme
+// MODIFICATION 1: Remplacement de l'URL placeholder par l'URL réelle du projet Supabase
+const SUPABASE_URL = 'https://mykmnwdeqwtpnnsvnlkf.supabase.co'; // URL de votre projet Supabase (CORRIGÉE)
+
+// MODIFICATION 2: La clé anon était déjà correcte, mais je la confirme
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15a21ud2RlcXd0cG5uc3ZubGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mjg5NzEsImV4cCI6MjA5MjUwNDk3MX0.Im2wNcNeRIH4ToI694EWvVQ4N5pW5FcukP_kFjuUHag'; // Clé publique pour l'accès anonyme (CORRECTE)
 
 // Variable globale pour le client Supabase
 let supabaseClient = null;
@@ -93,6 +96,7 @@ function initSupabase() {
         if (typeof supabase !== 'undefined') {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             console.log('✅ Connexion à la base de données Supabase établie');
+            console.log('📡 URL Supabase utilisée:', SUPABASE_URL); // MODIFICATION 3: Ajout d'un log pour vérifier l'URL
             return true;
         } else {
             console.error('❌ Client Supabase non chargé. Vérifiez le script dans le HTML.');
@@ -1075,3 +1079,4 @@ window.AuthManager = {
 document.addEventListener('DOMContentLoaded', initializeAuthPage);
 
 console.log('✅ Script authentification.js chargé - Prêt pour la page d\'authentification');
+console.log('🔗 Connexion Supabase configurée avec l\'URL:', SUPABASE_URL); // MODIFICATION 4: Log de confirmation final

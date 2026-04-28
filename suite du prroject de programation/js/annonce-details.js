@@ -7,6 +7,18 @@
  */
 
 // ============================================================================
+// CONFIGURATION SUPABASE (Base de données PostgreSQL)
+// ============================================================================
+
+// MODIFICATION 1: Ajout de la configuration Supabase pour les annonces
+// Configuration de la connexion à la base de données Supabase
+const SUPABASE_URL = 'https://mykmnwdeqwtpnnsvnlkf.supabase.co'; // URL du projet Supabase
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15a21ud2RlcXd0cG5uc3ZubGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mjg5NzEsImV4cCI6MjA5MjUwNDk3MX0.Im2wNcNeRIH4ToI694EWvVQ4N5pW5FcukP_kFjuUHag'; // Clé publique pour l'accès anonyme
+
+// MODIFICATION 2: Variable globale pour le client Supabase
+let supabaseClient = null;
+
+// ============================================================================
 // VARIABLES GLOBALES ET CONFIGURATION
 // ============================================================================
 
@@ -27,10 +39,14 @@ let allImages = [];
 /**
  * Initialise la page de détails d'annonce
  */
-function initializeDetailsPage() {
+async function initializeDetailsPage() {
     console.log('🚀 Initialisation de la page détails annonce...');
 
     try {
+        // MODIFICATION 3: Initialiser Supabase d'abord
+        // 0. Initialiser la connexion à Supabase
+        await initSupabase();
+
         // 1. Récupérer l'ID de l'annonce depuis l'URL
         const announcementId = getAnnouncementIdFromUrl();
 
@@ -40,10 +56,10 @@ function initializeDetailsPage() {
         }
 
         // 2. Charger les données
-        loadAnnoncesData();
+        await loadAnnoncesData();
 
         // 3. Trouver et afficher l'annonce
-        loadAnnouncementDetails(announcementId);
+        await loadAnnouncementDetails(announcementId);
 
         // 4. Configurer les événements
         setupModalEvents();
@@ -58,6 +74,28 @@ function initializeDetailsPage() {
     }
 }
 
+// MODIFICATION 4: Nouvelle fonction pour initialiser Supabase
+/**
+ * Initialise la connexion à la base de données Supabase
+ * @returns {boolean} True si l'initialisation a réussi
+ */
+async function initSupabase() {
+    try {
+        // Vérifier si le client Supabase est disponible (script chargé)
+        if (typeof supabase !== 'undefined') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Connexion à la base de données Supabase établie pour les annonces');
+            return true;
+        } else {
+            console.warn('⚠️ Client Supabase non chargé, utilisation du localStorage uniquement');
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation de la base de données:', error);
+        return false;
+    }
+}
+
 /**
  * Récupère l'ID de l'annonce depuis les paramètres URL
  * @returns {string|null} ID de l'annonce
@@ -67,16 +105,40 @@ function getAnnouncementIdFromUrl() {
     return urlParams.get('id') || urlParams.get('annonce');
 }
 
+// MODIFICATION 5: Chargement des données depuis Supabase
 /**
- * Charge les données des annonces depuis localStorage
+ * Charge les données des annonces depuis Supabase ou localStorage
  */
-function loadAnnoncesData() {
+async function loadAnnoncesData() {
     try {
-        // Récupérer depuis la base de données locale
-        const localAnnonces = JSON.parse(localStorage.getItem('local_annonces') || '[]');
+        let localAnnonces = [];
+        let recentAnnonces = [];
 
-        // Récupérer depuis les annonces récentes
-        const recentAnnonces = JSON.parse(localStorage.getItem('recent_annonces') || '[]');
+        // Tenter de charger depuis Supabase d'abord
+        if (supabaseClient) {
+            console.log('📡 Chargement des annonces depuis Supabase...');
+            const { data: supabaseData, error: supabaseError } = await supabaseClient
+                .from('annonces')
+                .select('*')
+                .eq('status', 'actif')
+                .order('created_at', { ascending: false });
+
+            if (!supabaseError && supabaseData) {
+                allAnnonces = supabaseData;
+                console.log(`✅ ${allAnnonces.length} annonces chargées depuis Supabase`);
+                
+                // Mettre à jour localStorage pour le fallback
+                localStorage.setItem('local_annonces', JSON.stringify(allAnnonces));
+                return;
+            } else {
+                console.warn('⚠️ Erreur Supabase, fallback localStorage:', supabaseError);
+            }
+        }
+
+        // Fallback: Charger depuis localStorage
+        console.log('📦 Chargement des annonces depuis localStorage...');
+        localAnnonces = JSON.parse(localStorage.getItem('local_annonces') || '[]');
+        recentAnnonces = JSON.parse(localStorage.getItem('recent_annonces') || '[]');
 
         // Fusionner les annonces sans doublons
         allAnnonces = [...localAnnonces];
@@ -101,11 +163,12 @@ function loadAnnoncesData() {
  * Charge et affiche les détails d'une annonce
  * @param {string} announcementId - ID de l'annonce à charger
  */
-function loadAnnouncementDetails(announcementId) {
+async function loadAnnouncementDetails(announcementId) {
     console.log(`🔍 Recherche de l'annonce ID: ${announcementId}`);
 
     // Masquer l'état de chargement
-    document.getElementById('loading-state').style.display = 'none';
+    const loadingState = document.getElementById('loading-state');
+    if (loadingState) loadingState.style.display = 'none';
 
     // Trouver l'annonce
     currentAnnouncement = allAnnonces.find(annonce =>
@@ -115,7 +178,8 @@ function loadAnnouncementDetails(announcementId) {
 
     if (!currentAnnouncement) {
         // Afficher l'état d'erreur
-        document.getElementById('error-state').style.display = 'block';
+        const errorState = document.getElementById('error-state');
+        if (errorState) errorState.style.display = 'block';
         return;
     }
 
@@ -129,9 +193,9 @@ function loadAnnouncementDetails(announcementId) {
     checkFavoriteStatus();
 
     // Incrémenter le nombre de vues
-    incrementViews();
+    await incrementViews();
 
-    console.log('✅ Détails de l\'annonce affichés:', currentAnnouncement.title);
+    console.log('✅ Détails de l\'annonce affichés:', currentAnnouncement.titre || currentAnnouncement.title);
 }
 
 /**
@@ -141,8 +205,11 @@ function displayAnnouncementDetails() {
     if (!currentAnnouncement) return;
 
     // Afficher la section des détails
-    document.getElementById('error-state').style.display = 'none';
-    document.getElementById('announcement-details').style.display = 'block';
+    const errorState = document.getElementById('error-state');
+    const detailsSection = document.getElementById('announcement-details');
+    
+    if (errorState) errorState.style.display = 'none';
+    if (detailsSection) detailsSection.style.display = 'block';
 
     // Mettre à jour le fil d'Ariane
     updateBreadcrumb();
@@ -164,11 +231,14 @@ function displayAnnouncementDetails() {
  * Met à jour le fil d'Ariane
  */
 function updateBreadcrumb() {
-    const category = currentAnnouncement.categorie || 'Autre';
-    const title = currentAnnouncement.titre;
+    const category = currentAnnouncement.categorie || currentAnnouncement.category || 'Autre';
+    const title = currentAnnouncement.titre || currentAnnouncement.title || 'Annonce';
 
-    document.getElementById('breadcrumb-category').textContent = category;
-    document.getElementById('breadcrumb-title').textContent = title;
+    const breadcrumbCategory = document.getElementById('breadcrumb-category');
+    const breadcrumbTitle = document.getElementById('breadcrumb-title');
+    
+    if (breadcrumbCategory) breadcrumbCategory.textContent = category;
+    if (breadcrumbTitle) breadcrumbTitle.textContent = title;
 
     // Mettre à jour le titre de la page
     document.title = `${title} - Sénégal Élevage`;
@@ -178,24 +248,26 @@ function updateBreadcrumb() {
  * Met à jour les informations principales
  */
 function updateMainInfo() {
-    document.getElementById('announcement-title').textContent = currentAnnouncement.titre;
-    document.getElementById('announcement-price').textContent =
-        `${currentAnnouncement.prix.toLocaleString()} ${currentAnnouncement.devise || 'XOF'}`;
-
-    // Afficher les badges si applicable
+    const titleElement = document.getElementById('announcement-title');
+    const priceElement = document.getElementById('announcement-price');
     const negotiableElement = document.getElementById('price-negotiable');
     const urgentElement = document.getElementById('announcement-urgent');
 
-    if (currentAnnouncement.prix_negociable) {
-        negotiableElement.style.display = 'inline-flex';
-    } else {
-        negotiableElement.style.display = 'none';
+    const title = currentAnnouncement.titre || currentAnnouncement.title || 'Sans titre';
+    const price = currentAnnouncement.prix || currentAnnouncement.price || 0;
+    const currency = currentAnnouncement.devise || currentAnnouncement.currency || 'XOF';
+    const isNegotiable = currentAnnouncement.prix_negociable || currentAnnouncement.negotiable || false;
+    const isUrgent = currentAnnouncement.annonce_urgente || currentAnnouncement.urgent || false;
+
+    if (titleElement) titleElement.textContent = title;
+    if (priceElement) priceElement.textContent = `${price.toLocaleString()} ${currency}`;
+
+    if (negotiableElement) {
+        negotiableElement.style.display = isNegotiable ? 'inline-flex' : 'none';
     }
 
-    if (currentAnnouncement.annonce_urgente) {
-        urgentElement.style.display = 'inline-flex';
-    } else {
-        urgentElement.style.display = 'none';
+    if (urgentElement) {
+        urgentElement.style.display = isUrgent ? 'inline-flex' : 'none';
     }
 }
 
@@ -207,24 +279,34 @@ function updateImages() {
     allImages = [];
 
     // Image principale
-    if (currentAnnouncement.image_principale) {
-        allImages.push(currentAnnouncement.image_principale);
+    const mainImagePath = currentAnnouncement.image_principale || 
+                          currentAnnouncement.main_image || 
+                          currentAnnouncement.image;
+    
+    if (mainImagePath) {
+        allImages.push(mainImagePath);
     }
 
     // Images additionnelles
-    if (currentAnnouncement.images && Array.isArray(currentAnnouncement.images)) {
-        allImages.push(...currentAnnouncement.images);
+    const additionalImages = currentAnnouncement.images || 
+                            currentAnnouncement.additional_images || 
+                            [];
+    
+    if (Array.isArray(additionalImages)) {
+        allImages.push(...additionalImages);
     }
 
     // S'il n'y a pas d'images, utiliser une image par défaut
     if (allImages.length === 0) {
-        allImages.push('placeholder.jpg');
+        allImages.push('https://placehold.co/600x400?text=S%C3%A9n%C3%A9gal+%C3%89levage');
     }
 
     // Afficher l'image principale
     const mainImage = document.getElementById('main-image');
-    mainImage.src = allImages[0];
-    mainImage.alt = currentAnnouncement.titre;
+    if (mainImage) {
+        mainImage.src = allImages[0];
+        mainImage.alt = currentAnnouncement.titre || currentAnnouncement.title || 'Image de l\'annonce';
+    }
 
     // Créer les vignettes
     createThumbnails();
@@ -238,6 +320,8 @@ function updateImages() {
  */
 function createThumbnails() {
     const container = document.getElementById('thumbnail-container');
+    if (!container) return;
+    
     container.innerHTML = '';
 
     allImages.forEach((image, index) => {
@@ -263,7 +347,7 @@ function selectImage(index) {
 
     currentImageIndex = index;
     const mainImage = document.getElementById('main-image');
-    mainImage.src = allImages[index];
+    if (mainImage) mainImage.src = allImages[index];
 
     // Mettre à jour les classes des vignettes
     const thumbnails = document.querySelectorAll('.thumbnail');
@@ -276,48 +360,78 @@ function selectImage(index) {
  * Met à jour les informations complémentaires
  */
 function updateAdditionalInfo() {
+    const category = currentAnnouncement.categorie || currentAnnouncement.category || 'Autre';
+    const location = currentAnnouncement.localisation || currentAnnouncement.location || 'Non spécifié';
+    const region = currentAnnouncement.region || 'Non spécifiée';
+    const createdAt = currentAnnouncement.created_at || currentAnnouncement.createdAt || new Date().toISOString();
+    const views = currentAnnouncement.views || 0;
+    const description = currentAnnouncement.description || 'Aucune description disponible.';
+    const condition = currentAnnouncement.etat_produit || currentAnnouncement.condition || 'Non spécifié';
+    const delivery = currentAnnouncement.livraison_possible || currentAnnouncement.delivery_available || false;
+    const type = currentAnnouncement.type_annonce || currentAnnouncement.ad_type || 'Standard';
+    const id = currentAnnouncement.id || 'N/A';
+
     // Informations rapides
-    document.getElementById('info-category').textContent =
-        getCategoryLabel(currentAnnouncement.categorie);
-    document.getElementById('info-location').textContent =
-        `${currentAnnouncement.localisation}, ${currentAnnouncement.region}`;
-    document.getElementById('info-date').textContent =
-        formatDate(currentAnnouncement.created_at);
-    document.getElementById('info-views').textContent =
-        (currentAnnouncement.views || 0).toLocaleString();
+    const infoCategory = document.getElementById('info-category');
+    const infoLocation = document.getElementById('info-location');
+    const infoDate = document.getElementById('info-date');
+    const infoViews = document.getElementById('info-views');
+    
+    if (infoCategory) infoCategory.textContent = getCategoryLabel(category);
+    if (infoLocation) infoLocation.textContent = `${location}, ${region}`;
+    if (infoDate) infoDate.textContent = formatDate(createdAt);
+    if (infoViews) infoViews.textContent = views.toLocaleString();
 
     // Description
-    document.getElementById('announcement-description').textContent =
-        currentAnnouncement.description || 'Aucune description disponible.';
+    const descriptionElement = document.getElementById('announcement-description');
+    if (descriptionElement) descriptionElement.textContent = description;
 
     // Informations additionnelles
-    document.getElementById('info-condition').textContent =
-        currentAnnouncement.etat_produit || 'Non spécifié';
-    document.getElementById('info-delivery').textContent =
-        currentAnnouncement.livraison_possible ? 'Disponible' : 'Non disponible';
-    document.getElementById('info-type').textContent =
-        currentAnnouncement.type_annonce || 'Standard';
-    document.getElementById('info-id').textContent =
-        currentAnnouncement.id;
+    const infoCondition = document.getElementById('info-condition');
+    const infoDelivery = document.getElementById('info-delivery');
+    const infoType = document.getElementById('info-type');
+    const infoId = document.getElementById('info-id');
+    
+    if (infoCondition) infoCondition.textContent = condition;
+    if (infoDelivery) infoDelivery.textContent = delivery ? 'Disponible' : 'Non disponible';
+    if (infoType) infoType.textContent = type;
+    if (infoId) infoId.textContent = id;
 }
 
 /**
  * Met à jour les informations du vendeur
  */
 function updateSellerInfo() {
-    document.getElementById('seller-name').textContent =
-        currentAnnouncement.nom_vendeur || 'Vendeur';
-    document.getElementById('seller-phone').textContent =
-        currentAnnouncement.telephone || 'Non disponible';
-    document.getElementById('seller-location').textContent =
-        currentAnnouncement.localisation || 'Non spécifié';
+    const sellerName = currentAnnouncement.nom_vendeur || 
+                       currentAnnouncement.seller_name || 
+                       currentAnnouncement.nom || 
+                       'Vendeur';
+    
+    const sellerPhone = currentAnnouncement.telephone || 
+                        currentAnnouncement.phone || 
+                        'Non disponible';
+    
+    const sellerLocation = currentAnnouncement.localisation || 
+                           currentAnnouncement.location || 
+                           'Non spécifié';
+
+    const sellerNameElement = document.getElementById('seller-name');
+    const sellerPhoneElement = document.getElementById('seller-phone');
+    const sellerLocationElement = document.getElementById('seller-location');
+    
+    if (sellerNameElement) sellerNameElement.textContent = sellerName;
+    if (sellerPhoneElement) sellerPhoneElement.textContent = sellerPhone;
+    if (sellerLocationElement) sellerLocationElement.textContent = sellerLocation;
 
     // Note fictive pour l'exemple
     const rating = 4.5;
     const reviews = 23;
 
-    document.getElementById('seller-rating').innerHTML = generateStars(rating);
-    document.getElementById('seller-reviews').textContent = `(${reviews} avis)`;
+    const sellerRating = document.getElementById('seller-rating');
+    const sellerReviews = document.getElementById('seller-reviews');
+    
+    if (sellerRating) sellerRating.innerHTML = generateStars(rating);
+    if (sellerReviews) sellerReviews.textContent = `(${reviews} avis)`;
 }
 
 /**
@@ -331,7 +445,10 @@ function getCategoryLabel(category) {
         'animaux': 'Animaux',
         'produits': 'Produits',
         'services': 'Services',
-        'materiel': 'Matériel'
+        'materiel': 'Matériel',
+        'bétail': 'Bétail',
+        'volaille': 'Volaille',
+        'équipement': 'Équipement'
     };
     return labels[category] || category || 'Autre';
 }
@@ -342,6 +459,7 @@ function getCategoryLabel(category) {
  * @returns {string} Date formatée
  */
 function formatDate(dateString) {
+    if (!dateString) return 'Date inconnue';
     const date = new Date(dateString);
     return date.toLocaleDateString('fr-FR', {
         day: 'numeric',
@@ -392,15 +510,22 @@ function loadSimilarAnnonces() {
         // Exclure l'annonce actuelle
         if (annonce.id === currentAnnouncement.id) return false;
 
+        const currentCategory = currentAnnouncement.categorie || currentAnnouncement.category;
+        const annonceCategory = annonce.categorie || annonce.category;
+        const currentRegion = currentAnnouncement.region;
+        const annonceRegion = annonce.region;
+        const currentPrice = currentAnnouncement.prix || currentAnnouncement.price || 0;
+        const annoncePrice = annonce.prix || annonce.price || 0;
+
         // Même catégorie
-        if (annonce.categorie === currentAnnouncement.categorie) return true;
+        if (annonceCategory === currentCategory) return true;
 
         // Même région
-        if (annonce.region === currentAnnouncement.region) return true;
+        if (annonceRegion === currentRegion) return true;
 
         // Même plage de prix (±30%)
-        const priceRange = currentAnnouncement.prix * 0.3;
-        if (Math.abs(annonce.prix - currentAnnouncement.prix) <= priceRange) return true;
+        const priceRange = currentPrice * 0.3;
+        if (Math.abs(annoncePrice - currentPrice) <= priceRange) return true;
 
         return false;
     });
@@ -419,6 +544,8 @@ function loadSimilarAnnonces() {
  */
 function displaySimilarAnnonces() {
     const container = document.getElementById('similar-grid');
+    if (!container) return;
+    
     container.innerHTML = '';
 
     if (similarAnnonces.length === 0) {
@@ -441,20 +568,27 @@ function createSimilarCard(annonce) {
     const card = document.createElement('div');
     card.className = 'similar-card';
 
+    const title = annonce.titre || annonce.title || 'Annonce';
+    const price = annonce.prix || annonce.price || 0;
+    const currency = annonce.devise || annonce.currency || 'XOF';
+    const location = annonce.localisation || annonce.location || 'Sénégal';
+    const image = annonce.image_principale || annonce.main_image || annonce.image || 'https://placehold.co/300x200?text=S%C3%A9n%C3%A9gal+%C3%89levage';
+    const id = annonce.id;
+
     card.innerHTML = `
-        <img src="${annonce.image_principale || 'placeholder.jpg'}" 
-             alt="${annonce.titre}" class="similar-image">
+        <img src="${image}" 
+             alt="${title}" class="similar-image">
         <div class="similar-info">
-            <h4 class="similar-title">${annonce.titre}</h4>
-            <div class="similar-price">${annonce.prix.toLocaleString()} ${annonce.devise || 'XOF'}</div>
+            <h4 class="similar-title">${title}</h4>
+            <div class="similar-price">${price.toLocaleString()} ${currency}</div>
             <div class="similar-location">
-                <i class="fas fa-map-marker-alt"></i> ${annonce.localisation}
+                <i class="fas fa-map-marker-alt"></i> ${location}
             </div>
         </div>
     `;
 
     card.addEventListener('click', () => {
-        window.location.href = `annonce-details.html?id=${annonce.id}`;
+        window.location.href = `annonce-details.html?id=${id}`;
     });
 
     return card;
@@ -510,11 +644,11 @@ function toggleFavorite() {
             // Ajouter aux favoris
             favorites.push({
                 id: currentAnnouncement.id,
-                title: currentAnnouncement.titre,
-                price: currentAnnouncement.prix,
-                image: currentAnnouncement.image_principale,
-                location: currentAnnouncement.localisation,
-                category: currentAnnouncement.categorie,
+                title: currentAnnouncement.titre || currentAnnouncement.title,
+                price: currentAnnouncement.prix || currentAnnouncement.price,
+                image: currentAnnouncement.image_principale || currentAnnouncement.main_image,
+                location: currentAnnouncement.localisation || currentAnnouncement.location,
+                category: currentAnnouncement.categorie || currentAnnouncement.category,
                 added_at: new Date().toISOString()
             });
             showNotification('❤️ Ajouté aux favoris');
@@ -541,16 +675,23 @@ function toggleFavorite() {
 function showContactModal() {
     if (!currentAnnouncement) return;
 
-    const phone = currentAnnouncement.telephone || '221770000000';
+    const phone = currentAnnouncement.telephone || 
+                  currentAnnouncement.phone || 
+                  '221770000000';
+    
     const cleanPhone = phone.replace(/[\s\-\(\)\+]/g, '');
     const fullPhone = cleanPhone.startsWith('221') ? cleanPhone : '221' + cleanPhone;
+    
+    const title = currentAnnouncement.titre || currentAnnouncement.title || 'cette annonce';
+    const price = currentAnnouncement.prix || currentAnnouncement.price || 0;
+    const currency = currentAnnouncement.devise || currentAnnouncement.currency || 'XOF';
 
     const message = encodeURIComponent(
-        `Bonjour, je suis intéressé(e) par votre annonce "${currentAnnouncement.titre}" à ${currentAnnouncement.prix.toLocaleString()} ${currentAnnouncement.devise || 'XOF'} sur Sénégal Élevage. Est-ce toujours disponible ?`
+        `Bonjour, je suis intéressé(e) par votre annonce "${title}" à ${price.toLocaleString()} ${currency} sur Sénégal Élevage. Est-ce toujours disponible ?`
     );
 
     window.open(`https://wa.me/${fullPhone}?text=${message}`, '_blank');
-    console.log(`📱 WhatsApp ouvert pour: ${currentAnnouncement.titre}`);
+    console.log(`📱 WhatsApp ouvert pour: ${title}`);
 }
 
 /**
@@ -558,8 +699,10 @@ function showContactModal() {
  */
 function showShareModal() {
     const modal = document.getElementById('share-modal');
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    if (modal) {
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
 }
 
 /**
@@ -579,7 +722,7 @@ function closeModals() {
  */
 function shareAnnouncement(platform) {
     const url = window.location.href;
-    const title = currentAnnouncement.titre;
+    const title = currentAnnouncement.titre || currentAnnouncement.title || 'une annonce';
     const text = `Découvrez cette annonce: ${title} - ${url}`;
 
     let shareUrl = '';
@@ -618,13 +761,13 @@ function handleContactSubmit(e) {
 
     const formData = {
         announcementId: currentAnnouncement.id,
-        announcementTitle: currentAnnouncement.titre,
-        sellerName: currentAnnouncement.nom_vendeur,
-        sellerPhone: currentAnnouncement.telephone,
-        contactName: document.getElementById('contact-name').value,
-        contactPhone: document.getElementById('contact-phone').value,
-        contactEmail: document.getElementById('contact-email').value,
-        message: document.getElementById('contact-message').value,
+        announcementTitle: currentAnnouncement.titre || currentAnnouncement.title,
+        sellerName: currentAnnouncement.nom_vendeur || currentAnnouncement.seller_name,
+        sellerPhone: currentAnnouncement.telephone || currentAnnouncement.phone,
+        contactName: document.getElementById('contact-name')?.value || '',
+        contactPhone: document.getElementById('contact-phone')?.value || '',
+        contactEmail: document.getElementById('contact-email')?.value || '',
+        message: document.getElementById('contact-message')?.value || '',
         timestamp: new Date().toISOString()
     };
 
@@ -638,7 +781,7 @@ function handleContactSubmit(e) {
     closeModals();
 
     // Réinitialiser le formulaire
-    e.target.reset();
+    if (e.target) e.target.reset();
 }
 
 /**
@@ -663,28 +806,44 @@ function saveContactRequest(requestData) {
     }
 }
 
+// MODIFICATION 6: Incrémentation des vues avec Supabase
 /**
  * Incrémente le nombre de vues de l'annonce
  */
-function incrementViews() {
+async function incrementViews() {
     try {
         if (!currentAnnouncement) return;
 
         // Incrémenter localement
         currentAnnouncement.views = (currentAnnouncement.views || 0) + 1;
+        const newViewCount = currentAnnouncement.views;
 
-        // Mettre à jour dans localStorage
+        // Mettre à jour dans Supabase si disponible
+        if (supabaseClient && currentAnnouncement.id) {
+            const { error } = await supabaseClient
+                .from('annonces')
+                .update({ views: newViewCount })
+                .eq('id', currentAnnouncement.id);
+            
+            if (error) {
+                console.warn('⚠️ Erreur mise à jour Supabase:', error);
+            } else {
+                console.log('✅ Vue incrémentée dans Supabase');
+            }
+        }
+
+        // Mettre à jour dans localStorage (fallback)
         const localAnnonces = JSON.parse(localStorage.getItem('local_annonces') || '[]');
         const index = localAnnonces.findIndex(a => a.id === currentAnnouncement.id);
 
         if (index !== -1) {
-            localAnnonces[index].views = currentAnnouncement.views;
+            localAnnonces[index].views = newViewCount;
             localStorage.setItem('local_annonces', JSON.stringify(localAnnonces));
         }
 
         // Mettre à jour l'affichage
-        document.getElementById('info-views').textContent =
-            currentAnnouncement.views.toLocaleString();
+        const infoViews = document.getElementById('info-views');
+        if (infoViews) infoViews.textContent = newViewCount.toLocaleString();
 
     } catch (error) {
         console.error('❌ Erreur lors de l\'incrémentation des vues:', error);
@@ -734,13 +893,14 @@ function setupModalEvents() {
  */
 function setupImageEvents() {
     // Zoom sur l'image principale
-    const mainImage = document.getElementById('main-image');
     const zoomBtn = document.getElementById('image-zoom');
 
     if (zoomBtn) {
         zoomBtn.addEventListener('click', () => {
             // Ouvrir l'image dans un nouvel onglet
-            window.open(allImages[currentImageIndex], '_blank');
+            if (allImages[currentImageIndex]) {
+                window.open(allImages[currentImageIndex], '_blank');
+            }
         });
     }
 
@@ -871,10 +1031,11 @@ window.DetailsManager = {
     isFavorite: () => isFavorite,
     toggleFavorite: toggleFavorite,
     shareAnnouncement: shareAnnouncement,
-    refreshDetails: () => loadAnnouncementDetails(currentAnnouncement.id)
+    refreshDetails: () => loadAnnouncementDetails(currentAnnouncement?.id)
 };
 
 // Initialiser quand le DOM est chargé
 document.addEventListener('DOMContentLoaded', initializeDetailsPage);
 
 console.log('✅ Script annonce-details.js chargé - Prêt pour la page détails');
+console.log('🔗 Connexion Supabase configurée avec l\'URL:', SUPABASE_URL);

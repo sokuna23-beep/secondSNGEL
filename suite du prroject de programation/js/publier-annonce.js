@@ -1,30 +1,79 @@
-// cette page de scrip est conçu uniquement organiser la base de donnée et pour remplir les lien et les url
+// cette page de script est conçue uniquement pour organiser la base de données et pour remplir les liens et les url
 // File: script.js (pour publier-annonce.html)
 // Description: Script pour la création d'annonces avec enregistrement dans Supabase
 // Gestion du formulaire, upload d'images et stockage en base
+// Version: 2.0.0
 
 // ============================================================================
 // CONFIGURATION SUPABASE (Base de données)
 // ============================================================================
 
+// MODIFICATION 1: Remplacement des placeholders par les vraies valeurs Supabase
 // URL et clé d'API pour la connexion à la base de données Supabase
-// Ces identifiants permettent de communiquer avec votre base de données PostgreSQL
-const SUPABASE_URL = 'https://votre-projet.supabase.co'; // URL de votre projet Supabase
-const SUPABASE_ANON_KEY = 'votre_cle_anon_public'; // Clé publique pour l'accès anonyme
+const SUPABASE_URL = 'https://mykmnwdeqwtpnnsvnlkf.supabase.co'; // URL de votre projet Supabase (CORRIGÉE)
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15a21ud2RlcXd0cG5uc3ZubGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mjg5NzEsImV4cCI6MjA5MjUwNDk3MX0.Im2wNcNeRIH4ToI694EWvVQ4N5pW5FcukP_kFjuUHag'; // Clé publique pour l'accès anonyme (CORRIGÉE)
 const SUPABASE_STORAGE_BUCKET = 'annonces-images'; // Bucket de stockage pour les images
 
-// Variable globale pour le client Supabase
-let supabase;
+// MODIFICATION 2: Variable globale pour le client Supabase
+let supabase = null;
+let isUsingSupabase = false;
 
 // Initialisation du client Supabase pour la connexion à la base de données
-// Cette fonction établit la connexion avec votre base de données PostgreSQL
-try {
-    if (typeof supabaseClient !== 'undefined') {
-        supabase = supabaseClient.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('✅ Connexion à la base de données Supabase établie');
+async function initSupabase() {
+    try {
+        if (typeof window.supabase !== 'undefined') {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Connexion à la base de données Supabase établie');
+            isUsingSupabase = true;
+            
+            // Vérifier si le bucket de stockage existe, sinon le créer
+            await ensureStorageBucket();
+            return true;
+        } else {
+            console.warn('⚠️ Client Supabase non trouvé. Mode hors ligne activé.');
+            isUsingSupabase = false;
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Erreur de connexion à la base de données:', error);
+        isUsingSupabase = false;
+        return false;
     }
-} catch (error) {
-    console.error('❌ Erreur de connexion à la base de données:', error);
+}
+
+// MODIFICATION 3: Vérification/création du bucket de stockage
+async function ensureStorageBucket() {
+    if (!supabase) return;
+    
+    try {
+        // Vérifier si le bucket existe
+        const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+        
+        if (listError) {
+            console.warn('⚠️ Impossible de lister les buckets:', listError);
+            return;
+        }
+        
+        const bucketExists = buckets?.some(b => b.name === SUPABASE_STORAGE_BUCKET);
+        
+        if (!bucketExists) {
+            // Créer le bucket s'il n'existe pas
+            const { error: createError } = await supabase.storage.createBucket(SUPABASE_STORAGE_BUCKET, {
+                public: true,
+                fileSizeLimit: 5 * 1024 * 1024 // 5MB
+            });
+            
+            if (createError) {
+                console.error('❌ Erreur création du bucket:', createError);
+            } else {
+                console.log(`✅ Bucket "${SUPABASE_STORAGE_BUCKET}" créé avec succès`);
+            }
+        } else {
+            console.log(`✅ Bucket "${SUPABASE_STORAGE_BUCKET}" existe déjà`);
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors de la vérification du bucket:', error);
+    }
 }
 
 // ============================================================================
@@ -32,12 +81,13 @@ try {
 // ============================================================================
 
 // Variables pour la gestion des images et des fichiers
-let uploadedImages = []; // Tableau pour stocker les informations des images uploadées
-let imageFiles = []; // Tableau pour stocker les objets fichiers sélectionnés
+let uploadedImages = [];
+let imageFiles = [];
+let currentUserId = null;
 
 // Constantes de configuration
-const MAX_IMAGES = 5; // Nombre maximum d'images autorisées par annonce
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // Taille maximale des fichiers (5MB en octets)
+const MAX_IMAGES = 5;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 // ============================================================================
 // GESTION DES IMAGES
@@ -56,12 +106,14 @@ function setupImageUpload() {
     if (browseLink) {
         browseLink.addEventListener('click', (e) => {
             e.preventDefault();
-            fileInput.click();
+            if (fileInput) fileInput.click();
         });
     }
 
     // Gestion des fichiers sélectionnés via input
-    fileInput.addEventListener('change', handleFileSelect);
+    if (fileInput) {
+        fileInput.addEventListener('change', handleFileSelect);
+    }
     if (imageInput) {
         imageInput.addEventListener('change', handleFileSelect);
     }
@@ -105,27 +157,23 @@ function handleFiles(files) {
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
 
-        // Vérifier si c'est une image
         if (!file.type.startsWith('image/')) {
             console.warn(`⚠️ Le fichier "${file.name}" n'est pas une image`);
             continue;
         }
 
-        // Vérifier la taille (5MB max)
         if (file.size > MAX_FILE_SIZE) {
             console.warn(`⚠️ Le fichier "${file.name}" dépasse 5MB`);
             alert(`Le fichier "${file.name}" dépasse la taille maximale de 5MB`);
             continue;
         }
 
-        // Vérifier le nombre maximum d'images
         if (uploadedImages.length >= MAX_IMAGES) {
             console.warn(`⚠️ Nombre maximum d'images atteint (${MAX_IMAGES})`);
             alert(`Vous ne pouvez ajouter que ${MAX_IMAGES} images maximum`);
             break;
         }
 
-        // Ajouter l'image à la liste
         const imageData = {
             file: file,
             name: file.name,
@@ -141,10 +189,8 @@ function handleFiles(files) {
         console.log(`✅ Image ajoutée: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
     }
 
-    // Mettre à jour les aperçus
     updateImagePreviews();
 
-    // Vider l'input pour permettre de sélectionner les mêmes fichiers
     if (e.target) {
         e.target.value = '';
     }
@@ -157,7 +203,6 @@ function updateImagePreviews() {
     const container = document.getElementById('imagePreviewContainer');
     if (!container) return;
 
-    // Vider le conteneur
     container.innerHTML = '';
 
     if (uploadedImages.length === 0) {
@@ -165,7 +210,6 @@ function updateImagePreviews() {
         return;
     }
 
-    // Créer les aperçus
     uploadedImages.forEach((image, index) => {
         const previewDiv = createImagePreview(image, index);
         container.appendChild(previewDiv);
@@ -173,13 +217,12 @@ function updateImagePreviews() {
 
     console.log(`🖼️ ${uploadedImages.length} aperçu(s) d'image(s) affiché(s)`);
 
-    // Update Live Preview Image
     const previewImage = document.getElementById('preview-image');
     if (previewImage) {
         if (uploadedImages.length > 0) {
             previewImage.src = uploadedImages[0].url;
         } else {
-            previewImage.src = 'https://via.placeholder.com/400x300?text=Votre+Image';
+            previewImage.src = 'https://placehold.co/400x300?text=Votre+Image';
         }
     }
 }
@@ -206,7 +249,6 @@ function createImagePreview(imageData, index) {
         </button>
     `;
 
-    // Gérer la suppression de l'image
     const removeBtn = previewDiv.querySelector('.remove-image');
     removeBtn.addEventListener('click', () => removeImage(index));
 
@@ -220,16 +262,13 @@ function createImagePreview(imageData, index) {
 function removeImage(index) {
     const image = uploadedImages[index];
 
-    // Libérer l'URL de l'objet
     if (image.url) {
         URL.revokeObjectURL(image.url);
     }
 
-    // Supprimer des tableaux 
     uploadedImages.splice(index, 1);
     imageFiles.splice(index, 1);
 
-    // Mettre à jour les aperçus
     updateImagePreviews();
 
     console.log(`🗑️ Image supprimée: ${image.name}`);
@@ -263,12 +302,10 @@ function setupFormEvents() {
     const descriptionTextarea = document.getElementById('description');
     const charCount = document.getElementById('charCount');
 
-    // Gestion de la soumission du formulaire
     if (form) {
         form.addEventListener('submit', handleFormSubmit);
     }
 
-    // Gestion du bouton de réinitialisation
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             if (confirm('Voulez-vous vraiment réinitialiser le formulaire ?')) {
@@ -277,13 +314,11 @@ function setupFormEvents() {
         });
     }
 
-    // Gestion du compteur de caractères
     if (descriptionTextarea && charCount) {
         descriptionTextarea.addEventListener('input', () => {
             const count = descriptionTextarea.value.length;
             charCount.textContent = count;
 
-            // Changer la couleur si on approche de la limite
             if (count > 450) {
                 charCount.style.color = '#dc3545';
             } else if (count > 400) {
@@ -295,6 +330,7 @@ function setupFormEvents() {
     }
 }
 
+// MODIFICATION 4: Soumission avec gestion Supabase améliorée
 /**
  * Gère la soumission du formulaire
  * @param {Event} e - Événement de soumission
@@ -304,7 +340,6 @@ async function handleFormSubmit(e) {
 
     console.log('📝 Soumission du formulaire d\'annonce...');
 
-    // Valider le formulaire
     const formData = getFormData();
     const validation = validateFormData(formData);
 
@@ -313,31 +348,28 @@ async function handleFormSubmit(e) {
         return;
     }
 
-    // Afficher l'indicateur de chargement
     const submitBtn = e.target.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publication en cours...';
     submitBtn.disabled = true;
 
     try {
-        // Upload des images si nécessaire
         let imageUrls = [];
+        
         if (uploadedImages.length > 0) {
-            if (supabase) {
+            if (isUsingSupabase && supabase) {
                 imageUrls = await uploadImagesToSupabase();
             } else {
-                // Mode hors ligne : utiliser les URLs locales
+                console.log('📴 Mode hors ligne: utilisation des URLs locales');
                 imageUrls = uploadedImages.map(img => img.url);
             }
         }
 
-        // Préparer les données de l'annonce
         const announcementData = prepareAnnouncementData(formData, imageUrls);
 
-        // Enregistrer l'annonce
         let savedData = null;
-        if (supabase) {
-            // Enregistrement dans la base de données
+        
+        if (isUsingSupabase && supabase) {
             const { data, error } = await supabase
                 .from('annonces')
                 .insert([announcementData])
@@ -355,13 +387,11 @@ async function handleFormSubmit(e) {
             };
             saveAnnouncementOffline(savedData);
             registerLocalAnnouncement(savedData);
-            console.log('💾 Annonce sauvegardée localement et enregistrée pour affichage:', savedData);
+            console.log('💾 Annonce sauvegardée localement:', savedData);
         }
 
-        // Afficher le message de succès
         showMessage('success', 'Votre annonce a été publiée avec succès !');
 
-        // Rediriger après 2 secondes
         setTimeout(() => {
             window.location.href = 'annonces.html';
         }, 2000);
@@ -370,7 +400,6 @@ async function handleFormSubmit(e) {
         console.error('❌ Erreur lors de la publication:', error);
         showMessage('error', 'Erreur lors de la publication. Veuillez réessayer.');
 
-        // Restaurer le bouton
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
     }
@@ -382,18 +411,18 @@ async function handleFormSubmit(e) {
  */
 function getFormData() {
     return {
-        titre: document.getElementById('titre').value,
-        description: document.getElementById('description').value,
-        categorie: document.getElementById('categorie').value,
-        etat: document.getElementById('etat').value,
-        prix: document.getElementById('prix').value,
-        devise: document.getElementById('devise').value,
-        localisation: document.getElementById('localisation').value,
-        region: document.getElementById('region').value,
-        nom: document.getElementById('nom').value,
-        telephone: document.getElementById('telephone').value,
-        email: document.getElementById('email').value,
-        entreprise: document.getElementById('entreprise').value
+        titre: document.getElementById('titre')?.value || '',
+        description: document.getElementById('description')?.value || '',
+        categorie: document.getElementById('categorie')?.value || '',
+        etat: document.getElementById('etat')?.value || '',
+        prix: document.getElementById('prix')?.value || '0',
+        devise: document.getElementById('devise')?.value || 'XOF',
+        localisation: document.getElementById('localisation')?.value || '',
+        region: document.getElementById('region')?.value || '',
+        nom: document.getElementById('nom')?.value || '',
+        telephone: document.getElementById('telephone')?.value || '',
+        email: document.getElementById('email')?.value || '',
+        entreprise: document.getElementById('entreprise')?.value || ''
     };
 }
 
@@ -405,47 +434,38 @@ function getFormData() {
 function validateFormData(formData) {
     const errors = [];
 
-    // Validation du titre
     if (!formData.titre || formData.titre.trim().length < 5) {
         errors.push('Le titre doit contenir au moins 5 caractères');
     }
 
-    // Validation de la description
     if (!formData.description || formData.description.trim().length < 20) {
         errors.push('La description doit contenir au moins 20 caractères');
     }
 
-    // Validation de la catégorie
     if (!formData.categorie) {
         errors.push('Veuillez sélectionner une catégorie');
     }
 
-    // Validation de l'état
     if (!formData.etat) {
         errors.push('Veuillez sélectionner l\'état du produit');
     }
 
-    // Validation du prix
     if (!formData.prix || parseFloat(formData.prix) <= 0) {
         errors.push('Le prix doit être supérieur à 0');
     }
 
-    // Validation de la localisation
     if (!formData.localisation || formData.localisation.trim().length < 2) {
         errors.push('Veuillez indiquer votre localisation');
     }
 
-    // Validation de la région
     if (!formData.region) {
         errors.push('Veuillez sélectionner une région');
     }
 
-    // Validation du nom
     if (!formData.nom || formData.nom.trim().length < 2) {
         errors.push('Le nom doit contenir au moins 2 caractères');
     }
 
-    // Validation du téléphone
     if (!formData.telephone || !/^\+?[\d\s\-\(\)]{8,}$/.test(formData.telephone)) {
         errors.push('Numéro de téléphone invalide');
     }
@@ -465,23 +485,22 @@ function showMessage(type, message) {
     const successDiv = document.getElementById('successMessage');
     const errorDiv = document.getElementById('errorMessage');
 
-    // Masquer tous les messages
-    successDiv.style.display = 'none';
-    errorDiv.style.display = 'none';
+    if (successDiv) successDiv.style.display = 'none';
+    if (errorDiv) errorDiv.style.display = 'none';
 
-    // Afficher le message approprié
-    if (type === 'success') {
-        successDiv.querySelector('p').textContent = message;
+    if (type === 'success' && successDiv) {
+        const p = successDiv.querySelector('p');
+        if (p) p.textContent = message;
         successDiv.style.display = 'flex';
-    } else if (type === 'error') {
-        errorDiv.querySelector('p').textContent = message;
+    } else if (type === 'error' && errorDiv) {
+        const p = errorDiv.querySelector('p');
+        if (p) p.textContent = message;
         errorDiv.style.display = 'flex';
     }
 
-    // Masquer le message après 5 secondes
     setTimeout(() => {
-        successDiv.style.display = 'none';
-        errorDiv.style.display = 'none';
+        if (successDiv) successDiv.style.display = 'none';
+        if (errorDiv) errorDiv.style.display = 'none';
     }, 5000);
 }
 
@@ -489,23 +508,18 @@ function showMessage(type, message) {
  * Réinitialise le formulaire
  */
 function resetForm() {
-    // Réinitialiser les champs
-    document.getElementById('annoncesForm').reset();
+    const form = document.getElementById('annoncesForm');
+    if (form) form.reset();
 
-    // Vider les images
     uploadedImages = [];
     imageFiles = [];
     updateImagePreviews();
 
-    // Réinitialiser le compteur de caractères
     const charCount = document.getElementById('charCount');
     if (charCount) {
         charCount.textContent = '0';
         charCount.style.color = '#6c757d';
     }
-
-    // Masquer les messages
-    showMessage('success', '');
 
     console.log('🔄 Formulaire réinitialisé');
 }
@@ -526,7 +540,7 @@ function saveAnnouncementOffline(announcement) {
  * Synchronise les annonces hors ligne avec la base de données
  */
 async function syncOfflineAnnouncements() {
-    if (!supabase) return;
+    if (!isUsingSupabase || !supabase) return;
 
     try {
         const offlineAnnouncements = JSON.parse(
@@ -549,13 +563,43 @@ async function syncOfflineAnnouncements() {
             }
         }
 
-        // Vider le cache local
         localStorage.removeItem('offline_announcements');
         console.log('✅ Synchronisation terminée');
 
     } catch (error) {
         console.error('❌ Erreur lors de la synchronisation:', error);
     }
+}
+
+// MODIFICATION 5: Récupération de l'ID utilisateur depuis Supabase Auth
+/**
+ * Récupère l'ID de l'utilisateur actuel
+ * @returns {Promise<string|null>} ID de l'utilisateur
+ */
+async function getCurrentUserId() {
+    if (isUsingSupabase && supabase) {
+        try {
+            const { data: { user }, error } = await supabase.auth.getUser();
+            if (!error && user) {
+                return user.id;
+            }
+        } catch (error) {
+            console.warn('Erreur récupération utilisateur:', error);
+        }
+    }
+    
+    // Fallback: vérifier dans localStorage
+    try {
+        const session = localStorage.getItem('user_session');
+        if (session) {
+            const sessionData = JSON.parse(session);
+            return sessionData.user?.id || null;
+        }
+    } catch (e) {
+        console.warn('Erreur récupération session:', e);
+    }
+    
+    return null;
 }
 
 /**
@@ -582,15 +626,15 @@ function prepareAnnouncementData(formData, imageUrls) {
         entreprise: formData.entreprise?.trim() || null,
         images: imageUrls,
         image_principale: imageUrls[0] || null,
-        livraison_possible: document.getElementById('livraison').checked,
-        prix_negociable: document.getElementById('negociation').checked,
-        annonce_urgente: document.getElementById('urgent').checked,
+        livraison_possible: document.getElementById('livraison')?.checked || false,
+        prix_negociable: document.getElementById('negociation')?.checked || false,
+        annonce_urgente: document.getElementById('urgent')?.checked || false,
         type_annonce: isMaterialAnnouncement ? 'materiel' : 'autre',
         categorie_materiel: isMaterialAnnouncement ? getMaterialCategory(formData.description) : null,
         status: 'actif',
         created_at: new Date().toISOString(),
         views: 0,
-        user_id: getCurrentUserId()
+        user_id: currentUserId
     };
 }
 
@@ -619,30 +663,16 @@ function getMaterialCategory(description) {
     return 'autre';
 }
 
-/**
- * Récupère l'ID de l'utilisateur actuel
- * @returns {string|null} ID de l'utilisateur
- */
-function getCurrentUserId() {
-    if (supabase && supabase.auth) {
-        const user = supabase.auth.getUser();
-        if (user && user.id) {
-            return user.id;
-        }
-    }
-    return null;
-}
-
 // ============================================================================
 // UPLOAD DES IMAGES SUR SUPABASE STORAGE
 // ============================================================================
 
+// MODIFICATION 6: Upload amélioré avec gestion d'erreurs
 /**
- * Upload les images sur Supabase Storage (Base de données de fichiers)
+ * Upload les images sur Supabase Storage
  * @returns {Promise<Array>} URLs des images uploadées
  */
 async function uploadImagesToSupabase() {
-    // Si Supabase n'est pas disponible ou aucune image à uploader
     if (!supabase || uploadedImages.length === 0) {
         return [];
     }
@@ -652,21 +682,20 @@ async function uploadImagesToSupabase() {
     try {
         console.log(`📤 Upload de ${uploadedImages.length} image(s) vers la base de données...`);
 
-        // Parcourir chaque image et l'uploader individuellement
         for (let i = 0; i < uploadedImages.length; i++) {
             const image = uploadedImages[i];
-            // Générer un nom de fichier unique avec timestamp et index
             const fileName = `${Date.now()}_${i}_${image.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-            const filePath = `${fileName}`;
+            const filePath = `annonces/${fileName}`;
 
-            // Upload du fichier vers le bucket Supabase Storage
-            const { data, error } = await supabase.storage
+            const { error } = await supabase.storage
                 .from(SUPABASE_STORAGE_BUCKET)
-                .upload(filePath, image.file);
+                .upload(filePath, image.file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
 
             if (error) throw error;
 
-            // Récupérer l'URL publique de l'image uploadée
             const { data: { publicUrl } } = supabase.storage
                 .from(SUPABASE_STORAGE_BUCKET)
                 .getPublicUrl(filePath);
@@ -679,44 +708,42 @@ async function uploadImagesToSupabase() {
         return imageUrls;
 
     } catch (error) {
-        console.error('❌ Erreur lors de l\'upload des images vers la base de données:', error);
+        console.error('❌ Erreur lors de l\'upload des images:', error);
         throw new Error('Échec de l\'upload des images. Veuillez réessayer.');
     }
 }
 
 // ============================================================================
-// ENREGISTREMENT DE L'ANNONCE DANS SUPABASE
+// ENREGISTREMENT LOCAL
 // ============================================================================
 
-// ... (code inchangé)
 /**
- * Initialise la page de création d'annonce
+ * Ajoute l'annonce aux stockages locaux utilisés par la page `annonces.html`
+ * @param {Object} annonce
  */
-function initializePage() {
-    console.log('Initialisation de la page création d\'annonce...');
+function registerLocalAnnouncement(annonce) {
+    try {
+        const localList = JSON.parse(localStorage.getItem('local_annonces') || '[]');
+        localList.unshift(annonce);
+        localStorage.setItem('local_annonces', JSON.stringify(localList));
 
-    // 1. Configurer les événements du formulaire
-    setupFormEvents();
+        const recent = JSON.parse(localStorage.getItem('recent_annonces') || '[]');
+        recent.unshift(annonce);
+        localStorage.setItem('recent_annonces', JSON.stringify(recent.slice(0, 20)));
 
-    // 2. Configurer l'upload d'images
-    setupImageUpload();
+        localStorage.setItem('just_published', 'true');
+        localStorage.setItem('new_announcement', JSON.stringify(annonce));
+        localStorage.setItem('highlight_announcement_id', annonce.id);
 
-    // 3. Initialiser les aperçus d'images
-    updateImagePreviews();
-
-    // 4. Vérifier et synchroniser les annonces hors ligne
-    if (supabase && navigator.onLine) {
-        syncOfflineAnnouncements();
+        console.log('✅ Annonce enregistrée dans localStorage pour affichage:', annonce);
+    } catch (err) {
+        console.error('Erreur lors de l\'enregistrement local de l\'annonce:', err);
     }
-
-    // 5. Configurer les validations en temps réel
-    setupRealTimeValidation();
-
-    // 6. Configurer l'aperçu en direct
-    setupLivePreview();
-
-    console.log('Page création d\'annonce initialisée');
 }
+
+// ============================================================================
+// VALIDATIONS TEMPS RÉEL ET APERÇU
+// ============================================================================
 
 /**
  * Configure les validations en temps réel
@@ -760,63 +787,53 @@ function setupLivePreview() {
         urgent: document.getElementById('urgent')
     };
 
-    // Update Title
-    if (inputs.titre) {
+    if (inputs.titre && previewElements.title) {
         inputs.titre.addEventListener('input', (e) => {
             previewElements.title.textContent = e.target.value || 'Titre de votre annonce';
         });
     }
 
-    // Update Price
     const updatePrice = () => {
-        const price = inputs.prix.value;
-        const currency = inputs.devise.value;
-        previewElements.price.textContent = price ? `${price} ${currency}` : '0 FCFA';
+        if (previewElements.price) {
+            const price = inputs.prix?.value || '0';
+            const currency = inputs.devise?.value || 'XOF';
+            previewElements.price.textContent = price ? `${parseInt(price).toLocaleString()} ${currency}` : '0 FCFA';
+        }
     };
+    
     if (inputs.prix) inputs.prix.addEventListener('input', updatePrice);
     if (inputs.devise) inputs.devise.addEventListener('change', updatePrice);
 
-    // Update Location
-    if (inputs.localisation) {
+    if (inputs.localisation && previewElements.location) {
         inputs.localisation.addEventListener('input', (e) => {
-            previewElements.location.textContent = inputs.localisation.value ? ` ${inputs.localisation.value}` : ' Votre Ville';
-            // Re-add icon if textContent wiped it (actually textContent wipes children, so let's handle it carefully or just set text)
-            // Better: just update the text node or span if it existed? 
-            // The HTML is: <div class="product-vendor"><i class="fas fa-map-marker-alt"></i> <span id="preview-location">Votre Ville</span></div>
-            // So safe to update textContent of preview-location.
+            previewElements.location.textContent = e.target.value || 'Votre Ville';
         });
     }
 
-    // Update Category
-    if (inputs.categorie) {
+    if (inputs.categorie && previewElements.category) {
         inputs.categorie.addEventListener('change', (e) => {
-            const selectedText = e.target.options[e.target.selectedIndex].text;
+            const selectedText = e.target.options[e.target.selectedIndex]?.text || '';
             previewElements.category.textContent = e.target.value ? selectedText.split('(')[0].trim().toUpperCase() : 'CATÉGORIE';
         });
     }
 
-    // Update Description
-    if (inputs.description) {
+    if (inputs.description && previewElements.description) {
         inputs.description.addEventListener('input', (e) => {
-            previewElements.description.textContent = e.target.value || 'La description de votre produit s\'affichera ici. Soyez précis pour attirer les acheteurs.';
+            previewElements.description.textContent = e.target.value || 'La description de votre produit s\'affichera ici.';
         });
     }
 
-    // Update Delivery Badge
-    if (inputs.livraison) {
+    if (inputs.livraison && previewElements.delivery) {
         inputs.livraison.addEventListener('change', (e) => {
             previewElements.delivery.style.display = e.target.checked ? 'flex' : 'none';
         });
     }
 
-    // Update Urgent Badge
-    if (inputs.urgent) {
+    if (inputs.urgent && previewElements.badge) {
         inputs.urgent.addEventListener('change', (e) => {
             previewElements.badge.style.display = e.target.checked ? 'block' : 'none';
             if (e.target.checked) {
                 previewElements.badge.textContent = 'Urgent';
-                previewElements.badge.style.backgroundColor = 'var(--error)';
-                previewElements.badge.style.color = 'white';
             }
         });
     }
@@ -840,28 +857,24 @@ function validateField(field) {
                 errorMessage = 'Le titre doit contenir au moins 5 caractères';
             }
             break;
-
         case 'description':
             if (value.length < 20) {
                 isValid = false;
                 errorMessage = 'La description doit contenir au moins 20 caractères';
             }
             break;
-
         case 'prix':
             if (!value || parseFloat(value) <= 0) {
                 isValid = false;
                 errorMessage = 'Le prix doit être supérieur à 0';
             }
             break;
-
         case 'telephone':
             if (!/^\+?[\d\s\-\(\)]{8,}$/.test(value)) {
                 isValid = false;
                 errorMessage = 'Numéro de téléphone invalide';
             }
             break;
-
         case 'nom':
             if (value.length < 2) {
                 isValid = false;
@@ -889,7 +902,7 @@ function showFieldError(field, message) {
     errorDiv.className = 'field-error';
     errorDiv.textContent = message;
 
-    field.parentNode.appendChild(errorDiv);
+    field.parentNode?.appendChild(errorDiv);
     field.classList.add('error');
 }
 
@@ -898,56 +911,60 @@ function showFieldError(field, message) {
  * @param {HTMLElement} field - Champ concerné
  */
 function clearFieldError(field) {
-    const existingError = field.parentNode.querySelector('.field-error');
-    if (existingError) {
-        existingError.remove();
-    }
+    const existingError = field.parentNode?.querySelector('.field-error');
+    if (existingError) existingError.remove();
     field.classList.remove('error');
 }
 
 // ============================================================================
-// EXÉCUTION
+// INITIALISATION
 // ============================================================================
 
-// Initialiser quand le DOM est chargé
+/**
+ * Initialise la page de création d'annonce
+ */
+async function initializePage() {
+    console.log('🚀 Initialisation de la page création d\'annonce...');
+    
+    // Initialiser Supabase
+    await initSupabase();
+    
+    // Récupérer l'ID utilisateur
+    currentUserId = await getCurrentUserId();
+    
+    if (currentUserId) {
+        console.log('👤 Utilisateur connecté:', currentUserId);
+    } else {
+        console.log('⚠️ Aucun utilisateur connecté - publication en mode invité');
+    }
+
+    setupFormEvents();
+    setupImageUpload();
+    updateImagePreviews();
+
+    if (isUsingSupabase && navigator.onLine) {
+        await syncOfflineAnnouncements();
+    }
+
+    setupRealTimeValidation();
+    setupLivePreview();
+
+    console.log('✅ Page création d\'annonce initialisée');
+    console.log(`📡 Statut Supabase: ${isUsingSupabase ? 'Connecté' : 'Hors ligne'}`);
+}
+
+// ============================================================================
+// ÉVÉNEMENTS ET EXÉCUTION
+// ============================================================================
+
 document.addEventListener('DOMContentLoaded', initializePage);
 
-// Surveiller la connexion internet pour la synchronisation
 window.addEventListener('online', () => {
-    console.log('Connexion rétablie');
-    if (supabase) {
+    console.log('🟢 Connexion rétablie');
+    if (isUsingSupabase) {
         syncOfflineAnnouncements();
     }
 });
-
-/**
- * Ajoute l'annonce aux stockages locaux utilisés par la page `annonces.html`
- * afin qu'elle s'affiche immédiatement après redirection.
- * @param {Object} annonce
- */
-function registerLocalAnnouncement(annonce) {
-    try {
-        // local_annonces : stockage principal utilisé par annonces.js
-        const localList = JSON.parse(localStorage.getItem('local_annonces') || '[]');
-        localList.unshift(annonce);
-        localStorage.setItem('local_annonces', JSON.stringify(localList));
-
-        // recent_annonces : pour compatibilité avec le système de transport
-        const recent = JSON.parse(localStorage.getItem('recent_annonces') || '[]');
-        recent.unshift(annonce);
-        // limiter la taille des récentes
-        localStorage.setItem('recent_annonces', JSON.stringify(recent.slice(0, 20)));
-
-        // indicateurs de nouvelle annonce pour annonces.js
-        localStorage.setItem('just_published', 'true');
-        localStorage.setItem('new_announcement', JSON.stringify(annonce));
-        localStorage.setItem('highlight_announcement_id', annonce.id);
-
-        console.log('✅ Annonce enregistrée dans localStorage pour affichage:', annonce);
-    } catch (err) {
-        console.error('Erreur lors de l\'enregistrement local de l\'annonce:', err);
-    }
-}
 
 // Exporter des fonctions pour un usage global
 window.AnnouncementCreator = {
@@ -956,19 +973,8 @@ window.AnnouncementCreator = {
     getOfflineCount: () => {
         const data = JSON.parse(localStorage.getItem('offline_announcements') || '[]');
         return data.length;
-    }
+    },
+    isOnline: () => isUsingSupabase
 };
 
-console.log('Script creation-annonce.js chargé');
-
-/*Validation complète du formulaire
-
-Upload d'images vers Supabase Storage
-
-Enregistrement dans la table annonces
-
-Mode hors ligne avec stockage local
-
-Synchronisation automatique quand connexion rétablie
-
-Catég orisation automatique des matériels*/
+console.log('✅ Script creation-annonce.js chargé');

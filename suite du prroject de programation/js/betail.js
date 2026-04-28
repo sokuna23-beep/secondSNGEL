@@ -7,6 +7,19 @@
  */
 
 // ============================================================================
+// CONFIGURATION SUPABASE (Base de données PostgreSQL)
+// ============================================================================
+
+// MODIFICATION 1: Ajout de la configuration Supabase
+// Configuration de la connexion à la base de données Supabase
+const SUPABASE_URL = 'https://mykmnwdeqwtpnnsvnlkf.supabase.co'; // URL du projet Supabase
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15a21ud2RlcXd0cG5uc3ZubGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mjg5NzEsImV4cCI6MjA5MjUwNDk3MX0.Im2wNcNeRIH4ToI694EWvVQ4N5pW5FcukP_kFjuUHag'; // Clé publique pour l'accès anonyme
+
+// MODIFICATION 2: Variable globale pour le client Supabase
+let supabaseClient = null;
+let isUsingSupabase = false;
+
+// ============================================================================
 // VARIABLES GLOBALES ET CONFIGURATION
 // ============================================================================
 
@@ -45,12 +58,169 @@ const CATEGORY_ICONS = {
     camelins: '🐪'
 };
 
+// MODIFICATION 3: Mapping des catégories pour compatibilité
+const CATEGORY_MAPPING = {
+    'bovin': 'bovins',
+    'ovin': 'ovins',
+    'caprin': 'caprins',
+    'porcin': 'porcins',
+    'camelins': 'camelins'
+};
+
 // ============================================================================
-// DONNÉES DES ANNONCES DE BÉTAIL
+// FONCTIONS D'INTERACTION AVEC SUPABASE
+// ============================================================================
+
+// MODIFICATION 4: Fonction d'initialisation de Supabase
+/**
+ * Initialise la connexion à Supabase
+ */
+async function initSupabase() {
+    try {
+        if (typeof supabase !== 'undefined') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Connexion Supabase établie pour la page Bétail');
+            
+            // Tester la connexion
+            const { data, error } = await supabaseClient
+                .from('annonces')
+                .select('count', { count: 'exact', head: true })
+                .eq('categorie', 'animaux');
+            
+            if (!error) {
+                isUsingSupabase = true;
+                console.log('✅ Base de données Supabase accessible');
+            } else {
+                console.warn('⚠️ Table annonces non accessible, utilisation des données locales');
+            }
+        } else {
+            console.warn('⚠️ Client Supabase non trouvé');
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation Supabase:', error);
+    }
+}
+
+// MODIFICATION 5: Récupération des annonces depuis Supabase
+/**
+ * Récupère les annonces de bétail depuis Supabase
+ * @returns {Promise<Array>} Liste des annonces de bétail
+ */
+async function fetchLivestockFromSupabase() {
+    if (!supabaseClient) return null;
+    
+    try {
+        console.log('📡 Récupération des annonces de bétail depuis Supabase...');
+        
+        const { data, error } = await supabaseClient
+            .from('annonces')
+            .select('*')
+            .eq('categorie', 'animaux')
+            .eq('sous_categorie', 'betail')
+            .eq('status', 'actif')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+            console.log(`✅ ${data.length} annonces de bétail récupérées depuis Supabase`);
+            
+            // Transformer les données au format attendu
+            return data.map(annonce => transformSupabaseToLivestock(annonce));
+        }
+        
+        return [];
+        
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération depuis Supabase:', error);
+        return null;
+    }
+}
+
+// MODIFICATION 6: Transformation des données Supabase vers format bétail
+/**
+ * Transforme une annonce Supabase en format bétail
+ * @param {Object} annonce - Annonce depuis Supabase
+ * @returns {Object} Annonce formatée pour la page bétail
+ */
+function transformSupabaseToLivestock(annonce) {
+    // Déterminer la catégorie à partir des tags ou du titre
+    let category = determineCategory(annonce);
+    
+    return {
+        id: annonce.id,
+        title: annonce.titre || annonce.title,
+        category: category,
+        price: annonce.prix || annonce.price || 0,
+        currency: annonce.devise || annonce.currency || 'XOF',
+        age: annonce.age || extractAge(annonce.description) || 'Non spécifié',
+        weight: annonce.poids || annonce.weight || 'Non spécifié',
+        breed: annonce.race || annonce.breed || 'Non spécifiée',
+        description: annonce.description || '',
+        image: annonce.image_principale || annonce.main_image || 'assets/images/placeholder.svg',
+        location: annonce.localisation || annonce.location || 'Sénégal',
+        region: annonce.region || 'Non spécifié',
+        seller: annonce.nom_vendeur || annonce.seller_name || 'Éleveur',
+        phone: annonce.telephone || annonce.phone || '+221 77 000 00 00',
+        certified: annonce.certifie || annonce.certified || false,
+        vaccinated: annonce.vaccine || annonce.vaccinated || false,
+        views: annonce.views || 0,
+        created_at: annonce.created_at,
+        urgent: annonce.annonce_urgente || annonce.urgent || false
+    };
+}
+
+// MODIFICATION 7: Détermination de la catégorie
+/**
+ * Détermine la catégorie d'un animal à partir de l'annonce
+ * @param {Object} annonce - Annonce Supabase
+ * @returns {string} Catégorie
+ */
+function determineCategory(annonce) {
+    const title = (annonce.titre || annonce.title || '').toLowerCase();
+    const description = (annonce.description || '').toLowerCase();
+    const searchText = title + ' ' + description;
+    
+    if (searchText.includes('vache') || searchText.includes('taureau') || searchText.includes('génisse') || searchText.includes('bovin')) {
+        return 'bovin';
+    }
+    if (searchText.includes('mouton') || searchText.includes('bélier') || searchText.includes('brebis') || searchText.includes('ovin')) {
+        return 'ovin';
+    }
+    if (searchText.includes('chèvre') || searchText.includes('bouc') || searchText.includes('caprin')) {
+        return 'caprin';
+    }
+    if (searchText.includes('cochon') || searchText.includes('porc') || searchText.includes('truie') || searchText.includes('porcin')) {
+        return 'porcin';
+    }
+    if (searchText.includes('chameau') || searchText.includes('dromadaire') || searchText.includes('camelin')) {
+        return 'camelins';
+    }
+    
+    return 'bovin'; // Par défaut
+}
+
+// MODIFICATION 8: Extraction de l'âge depuis la description
+/**
+ * Extrait l'âge d'un animal depuis la description
+ * @param {string} description - Description de l'annonce
+ * @returns {string} Âge extrait ou null
+ */
+function extractAge(description) {
+    if (!description) return null;
+    const ageMatch = description.match(/(\d+)\s*(ans|mois|an)/i);
+    if (ageMatch) {
+        return `${ageMatch[1]} ${ageMatch[2]}`;
+    }
+    return null;
+}
+
+// ============================================================================
+// DONNÉES DES ANNONCES DE BÉTAIL (LOCALES)
 // ============================================================================
 
 /**
- * Retourne les données des annonces de bétail
+ * Retourne les données des annonces de bétail (locales)
  * @returns {Array} Liste des annonces de bétail
  */
 function getLivestockData() {
@@ -241,37 +411,125 @@ function getLivestockData() {
 // FONCTIONS D'INITIALISATION
 // ============================================================================
 
+// MODIFICATION 9: Initialisation avec Supabase
 /**
  * Initialise la page bétail
  */
-function initializeLivestockPage() {
+async function initializeLivestockPage() {
     console.log('🚀 Initialisation de la page Bétail...');
     
+    // Afficher un indicateur de chargement
+    showLoadingIndicator();
+    
     try {
-        // 1. Charger les données
-        allLivestock = getLivestockData();
-        filteredLivestock = [...allLivestock];
+        // 1. Initialiser Supabase
+        await initSupabase();
         
-        // 2. Configurer les événements
+        // 2. Charger les données depuis Supabase ou local
+        await loadLivestockData();
+        
+        // 3. Configurer les événements
         setupCategoryEvents();
         setupFilterEvents();
         setupSearchEvents();
         setupLoadMoreEvents();
         
-        // 3. Appliquer les filtres initiaux
+        // 4. Appliquer les filtres initiaux
         applyFilters();
         
-        // 4. Afficher les résultats
+        // 5. Afficher les résultats
         displayLivestock();
         
-        // 5. Optimiser les images
+        // 6. Optimiser les images
         optimizeImages();
+        
+        // Afficher le statut de connexion
+        showConnectionStatus();
         
         console.log(`✅ Page Bétail initialisée avec ${allLivestock.length} annonces`);
         
     } catch (error) {
         console.error('❌ Erreur lors de l\'initialisation:', error);
         showError('Erreur lors du chargement des annonces de bétail');
+        hideLoadingIndicator();
+    }
+}
+
+// MODIFICATION 10: Chargement des données
+/**
+ * Charge les données de bétail depuis Supabase ou localement
+ */
+async function loadLivestockData() {
+    // Tenter de charger depuis Supabase
+    if (supabaseClient) {
+        const supabaseData = await fetchLivestockFromSupabase();
+        if (supabaseData && supabaseData.length > 0) {
+            allLivestock = supabaseData;
+            console.log(`✅ ${allLivestock.length} annonces chargées depuis Supabase`);
+            
+            // Mettre à jour le localStorage pour le fallback
+            localStorage.setItem('livestock_data', JSON.stringify(allLivestock));
+            return;
+        }
+    }
+    
+    // Fallback: Charger depuis localStorage
+    const cachedData = localStorage.getItem('livestock_data');
+    if (cachedData) {
+        try {
+            allLivestock = JSON.parse(cachedData);
+            console.log(`💾 ${allLivestock.length} annonces chargées depuis le cache`);
+            return;
+        } catch (e) {
+            console.warn('Erreur lors du chargement du cache');
+        }
+    }
+    
+    // Dernier recours: Données par défaut
+    allLivestock = getLivestockData();
+    console.log(`📋 ${allLivestock.length} annonces chargées depuis les données par défaut`);
+    
+    // Sauvegarder dans localStorage
+    localStorage.setItem('livestock_data', JSON.stringify(allLivestock));
+}
+
+/**
+ * Affiche un indicateur de chargement
+ */
+function showLoadingIndicator() {
+    const container = document.getElementById('livestock-container');
+    if (container) {
+        container.innerHTML = `
+            <div class="loading-state" style="grid-column: 1/-1; text-align: center; padding: 50px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 40px;"></i>
+                <p>Chargement des annonces de bétail...</p>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Cache l'indicateur de chargement
+ */
+function hideLoadingIndicator() {
+    // L'indicateur sera remplacé par l'affichage normal
+}
+
+/**
+ * Affiche le statut de connexion à Supabase
+ */
+function showConnectionStatus() {
+    if (isUsingSupabase) {
+        console.log('📡 Mode: Connecté à Supabase (données en ligne)');
+        // Optionnel: Afficher un badge de connexion
+        const statusBadge = document.createElement('div');
+        statusBadge.className = 'connection-status online';
+        statusBadge.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Données synchronisées';
+        statusBadge.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #28a745; color: white; padding: 8px 15px; border-radius: 20px; font-size: 12px; z-index: 1000;';
+        document.body.appendChild(statusBadge);
+        setTimeout(() => statusBadge.remove(), 5000);
+    } else {
+        console.log('📴 Mode: Hors ligne (données locales)');
     }
 }
 
@@ -336,37 +594,42 @@ function createLivestockCard(livestock) {
     card.className = 'livestock-card';
     
     // Formater le prix
-    const formattedPrice = `${livestock.price.toLocaleString()} ${livestock.currency}`;
+    const formattedPrice = `${(livestock.price || 0).toLocaleString()} ${livestock.currency || 'XOF'}`;
     
     // Générer le badge de catégorie
+    const categoryName = LIVESTOCK_CATEGORIES[livestock.category] || livestock.category;
     const categoryBadge = livestock.urgent ? 
-        '<span class="livestock-badge">URGENT</span>' : 
-        `<span class="livestock-badge">${LIVESTOCK_CATEGORIES[livestock.category]}</span>`;
+        '<span class="livestock-badge urgent">URGENT</span>' : 
+        `<span class="livestock-badge">${categoryName}</span>`;
+    
+    // Gérer l'image par défaut
+    const imageUrl = livestock.image && livestock.image !== 'undefined' ? 
+        livestock.image : 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22400%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22sans-serif%22 font-size=%2216%22 fill=%22%23999%22%3EImage non disponible%3C/text%3E%3C/svg%3E';
     
     card.innerHTML = `
         <div class="livestock-image-container">
-            <img src="${livestock.image}" alt="${livestock.title}" class="livestock-image" 
+            <img src="${imageUrl}" alt="${livestock.title}" class="livestock-image" 
                  loading="lazy"
                  onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22400%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22sans-serif%22 font-size=%2216%22 fill=%22%23999%22%3EImage non disponible%3C/text%3E%3C/svg%3E'">
             ${categoryBadge}
         </div>
         
         <div class="livestock-info">
-            <h3 class="livestock-title">${livestock.title}</h3>
-            <p class="livestock-description">${truncateText(livestock.description, 80)}</p>
+            <h3 class="livestock-title">${livestock.title || 'Sans titre'}</h3>
+            <p class="livestock-description">${truncateText(livestock.description || '', 80)}</p>
             
             <div class="livestock-details">
                 <div class="detail-item">
                     <i class="fas fa-tag"></i>
-                    <span>${livestock.breed}</span>
+                    <span>${livestock.breed || 'Non spécifiée'}</span>
                 </div>
                 <div class="detail-item">
                     <i class="fas fa-birthday-cake"></i>
-                    <span>${livestock.age}</span>
+                    <span>${livestock.age || 'Non spécifié'}</span>
                 </div>
                 <div class="detail-item">
                     <i class="fas fa-weight"></i>
-                    <span>${livestock.weight}</span>
+                    <span>${livestock.weight || 'Non spécifié'}</span>
                 </div>
                 <div class="detail-item">
                     <i class="fas fa-shield-alt"></i>
@@ -379,7 +642,7 @@ function createLivestockCard(livestock) {
             <div class="livestock-meta">
                 <div class="livestock-location">
                     <i class="fas fa-map-marker-alt"></i>
-                    <span>${livestock.location}</span>
+                    <span>${livestock.location || livestock.region || 'Sénégal'}</span>
                 </div>
                 <div class="livestock-date">
                     <i class="fas fa-clock"></i>
@@ -425,6 +688,7 @@ function truncateText(text, maxLength) {
  * @returns {string} Date formatée
  */
 function formatRelativeTime(dateString) {
+    if (!dateString) return 'Date inconnue';
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now - date;
@@ -571,11 +835,11 @@ function applyFilters() {
         
         // Filtre par recherche
         const searchMatch = currentFilters.search === '' || 
-            livestock.title.toLowerCase().includes(currentFilters.search) ||
-            livestock.description.toLowerCase().includes(currentFilters.search) ||
-            livestock.breed.toLowerCase().includes(currentFilters.search) ||
-            livestock.location.toLowerCase().includes(currentFilters.search) ||
-            livestock.seller.toLowerCase().includes(currentFilters.search);
+            (livestock.title || '').toLowerCase().includes(currentFilters.search) ||
+            (livestock.description || '').toLowerCase().includes(currentFilters.search) ||
+            (livestock.breed || '').toLowerCase().includes(currentFilters.search) ||
+            (livestock.location || '').toLowerCase().includes(currentFilters.search) ||
+            (livestock.seller || '').toLowerCase().includes(currentFilters.search);
         
         // Filtre par région
         const regionMatch = currentFilters.region === '' || livestock.region === currentFilters.region;
@@ -583,10 +847,10 @@ function applyFilters() {
         // Filtre par prix
         let priceMatch = true;
         if (currentFilters.priceMin) {
-            priceMatch = priceMatch && livestock.price >= parseInt(currentFilters.priceMin);
+            priceMatch = priceMatch && (livestock.price || 0) >= parseInt(currentFilters.priceMin);
         }
         if (currentFilters.priceMax) {
-            priceMatch = priceMatch && livestock.price <= parseInt(currentFilters.priceMax);
+            priceMatch = priceMatch && (livestock.price || 0) <= parseInt(currentFilters.priceMax);
         }
         
         return categoryMatch && searchMatch && regionMatch && priceMatch;
@@ -610,16 +874,24 @@ function sortLivestock() {
             filteredLivestock.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             break;
         case 'prix-asc':
-            filteredLivestock.sort((a, b) => a.price - b.price);
+            filteredLivestock.sort((a, b) => (a.price || 0) - (b.price || 0));
             break;
         case 'prix-desc':
-            filteredLivestock.sort((a, b) => b.price - a.price);
+            filteredLivestock.sort((a, b) => (b.price || 0) - (a.price || 0));
             break;
         case 'age-asc':
-            filteredLivestock.sort((a, b) => parseInt(a.age) - parseInt(b.age));
+            filteredLivestock.sort((a, b) => {
+                const ageA = parseInt(a.age) || 0;
+                const ageB = parseInt(b.age) || 0;
+                return ageA - ageB;
+            });
             break;
         case 'age-desc':
-            filteredLivestock.sort((a, b) => parseInt(b.age) - parseInt(a.age));
+            filteredLivestock.sort((a, b) => {
+                const ageA = parseInt(a.age) || 0;
+                const ageB = parseInt(b.age) || 0;
+                return ageB - ageA;
+            });
             break;
         default:
             filteredLivestock.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -642,11 +914,11 @@ function contactSeller(livestock) {
         🐄 DEMANDE DE CONTACT - BÉTAIL
         
         Annonce: ${livestock.title}
-        Prix: ${livestock.price.toLocaleString()} ${livestock.currency}
+        Prix: ${(livestock.price || 0).toLocaleString()} ${livestock.currency || 'XOF'}
         Race: ${livestock.breed}
         Âge: ${livestock.age}
         Poids: ${livestock.weight}
-        Localisation: ${livestock.location}
+        Localisation: ${livestock.location || livestock.region}
         Vendeur: ${livestock.seller}
         Téléphone: ${livestock.phone}
         
@@ -658,7 +930,10 @@ function contactSeller(livestock) {
         showNotification('📋 Informations du vendeur copiées dans le presse-papiers');
         
         // Ouvrir le téléphone (si possible)
-        window.open(`tel:${livestock.phone}`, '_self');
+        if (livestock.phone && livestock.phone !== 'Non disponible') {
+            const cleanPhone = livestock.phone.replace(/[\s\-\(\)\+]/g, '');
+            window.open(`tel:${cleanPhone}`, '_self');
+        }
         
     }).catch(() => {
         // Alternative: afficher les informations dans une alerte
@@ -677,26 +952,26 @@ function showLivestockDetails(livestock) {
     console.log(`📋 Affichage des détails pour: ${livestock.title}`);
     
     const details = `
-        🐄 ${livestock.title}
+        🐄 ${livestock.title || 'Annonce de bétail'}
         
-        📝 Description: ${livestock.description}
+        📝 Description: ${livestock.description || 'Non disponible'}
         
-        🏷️ Race: ${livestock.breed}
-        🎂 Âge: ${livestock.age}
-        ⚖️ Poids: ${livestock.weight}
+        🏷️ Race: ${livestock.breed || 'Non spécifiée'}
+        🎂 Âge: ${livestock.age || 'Non spécifié'}
+        ⚖️ Poids: ${livestock.weight || 'Non spécifié'}
         
-        💰 Prix: ${livestock.price.toLocaleString()} ${livestock.currency}
+        💰 Prix: ${(livestock.price || 0).toLocaleString()} ${livestock.currency || 'XOF'}
         
-        📍 Localisation: ${livestock.location} (${livestock.region})
+        📍 Localisation: ${livestock.location || livestock.region || 'Sénégal'}
         
-        🏪 Vendeur: ${livestock.seller}
-        📞 Téléphone: ${livestock.phone}
+        🏪 Vendeur: ${livestock.seller || 'Éleveur'}
+        📞 Téléphone: ${livestock.phone || 'Non disponible'}
         
         📜 Certifié: ${livestock.certified ? 'Oui' : 'Non'}
         💉 Vacciné: ${livestock.vaccinated ? 'Oui' : 'Non'}
         
-        👁️ Vues: ${livestock.views}
-        📅 Date: ${new Date(livestock.created_at).toLocaleDateString('fr-FR')}
+        👁️ Vues: ${livestock.views || 0}
+        📅 Date: ${livestock.created_at ? new Date(livestock.created_at).toLocaleDateString('fr-FR') : 'Inconnue'}
         
         ${livestock.urgent ? '🚨 ANNONCE URGENTE' : ''}
     `;
@@ -718,7 +993,7 @@ function saveContactRequest(livestock) {
             title: livestock.title,
             seller: livestock.seller,
             phone: livestock.phone,
-            location: livestock.location,
+            location: livestock.location || livestock.region,
             price: livestock.price,
             timestamp: new Date().toISOString()
         };
@@ -804,7 +1079,7 @@ function showError(message) {
 }
 
 // ============================================================================
-// EXPORT ET INITIALISATION
+// OPTIMISATION DES IMAGES
 // ============================================================================
 
 /**
@@ -848,24 +1123,17 @@ function optimizeImages() {
         }
         
         // Ajouter srcset pour la responsivité
-        if (img.src && !img.hasAttribute('srcset')) {
-            const src = img.src;
-            img.setAttribute('srcset', `${src} 1x, ${src} 2x`);
+        if (img.src && !img.hasAttribute('srcset') && !img.src.includes('data:image')) {
+            img.setAttribute('srcset', `${img.src} 1x, ${img.src} 2x`);
         }
     });
     
     console.log('🖼️ Images optimisées pour la responsivité');
 }
 
-/**
- * Redéfinir displayLivestock pour appeler optimizeImages
- */
-const originalDisplayLivestock = displayLivestock;
-displayLivestock = function() {
-    originalDisplayLivestock.call(this);
-    // Optimiser les images après l'affichage
-    setTimeout(() => optimizeImages(), 100);
-};
+// ============================================================================
+// EXPORT ET INITIALISATION
+// ============================================================================
 
 // Exporter les fonctions pour usage global
 window.LivestockManager = {
@@ -876,10 +1144,13 @@ window.LivestockManager = {
     refreshLivestock: () => applyFilters(),
     contactSeller: contactSeller,
     showDetails: showLivestockDetails,
-    optimizeImages: optimizeImages
+    optimizeImages: optimizeImages,
+    syncWithSupabase: loadLivestockData,
+    isOnline: () => isUsingSupabase
 };
 
 // Initialiser quand le DOM est chargé
 document.addEventListener('DOMContentLoaded', initializeLivestockPage);
 
 console.log('✅ Script betail.js chargé - Prêt pour la page bétail');
+console.log('🔗 Connexion Supabase configurée avec l\'URL:', SUPABASE_URL);

@@ -3,18 +3,36 @@
 // Gestion de l'affichage, du filtrage, de la recherche et de la pagination des annonces
 
 // ============================================================================
-// ============================================================================
 // CONFIGURATION SUPABASE (Base de données PostgreSQL)
 // ============================================================================
 
-// Le client est déjà initialisé dans js/supabase-config.js et disponible via window.supabaseClient
-// Si non, on tente de le récupérer via window.supabase si la lib est chargée
-let supabase = window.supabaseClient || (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null);
+// MODIFICATION 1: Définition directe des variables Supabase pour plus de fiabilité
+// Configuration de la connexion à la base de données Supabase
+const SUPABASE_URL = 'https://mykmnwdeqwtpnnsvnlkf.supabase.co'; // URL du projet Supabase
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15a21ud2RlcXd0cG5uc3ZubGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mjg5NzEsImV4cCI6MjA5MjUwNDk3MX0.Im2wNcNeRIH4ToI694EWvVQ4N5pW5FcukP_kFjuUHag'; // Clé publique pour l'accès anonyme
 
-if (supabase) {
-    console.log('✅ Connexion à la base de données établie pour les annonces (via config centralisée)');
-} else {
-    console.warn('⚠️ Client Supabase non trouvé. Assurez-vous que js/supabase-config.js est chargé.');
+// MODIFICATION 2: Initialisation plus robuste du client Supabase
+// Le client est initialisé directement avec nos variables
+let supabase = null;
+
+// Initialisation du client Supabase
+try {
+    if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient) {
+        supabase = window.supabaseClient;
+        console.log('✅ Connexion à la base de données via client centralisé');
+    } else if (typeof supabase !== 'undefined' && window.supabase) {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('✅ Connexion à la base de données via création directe');
+    } else {
+        console.warn('⚠️ Client Supabase non trouvé. Vérifiez l\'inclusion de la bibliothèque Supabase.');
+    }
+} catch (error) {
+    console.error('❌ Erreur lors de l\'initialisation du client Supabase:', error);
+}
+
+// MODIFICATION 3: Ajout d'une fonction pour vérifier l'état de la connexion
+function isSupabaseAvailable() {
+    return supabase !== null;
 }
 
 // ============================================================================
@@ -26,6 +44,7 @@ let allAnnonces = [];
 let filteredAnnonces = [];
 let currentPage = 1;
 let annoncesPerPage = 12;
+let isLoading = false;
 
 // Variables pour les filtres et la recherche
 let currentFilters = {
@@ -39,11 +58,12 @@ let currentFilters = {
 // FONCTIONS D'INTERACTION AVEC LA BASE DE DONNÉES
 // ============================================================================
 
+// MODIFICATION 4: Amélioration de la fonction fetchAllAnnonces
 /**
  * Récupère toutes les annonces actives depuis la base de données Supabase
  */
 async function fetchAllAnnonces() {
-    if (!supabase) {
+    if (!isSupabaseAvailable()) {
         console.log('📴 Mode hors ligne: utilisation des données par défaut');
         return getDefaultAnnonces();
     }
@@ -63,11 +83,105 @@ async function fetchAllAnnonces() {
         }
 
         console.log(`✅ ${data.length} annonces récupérées avec succès`);
-        return data || [];
+        
+        // MODIFICATION 5: Transformation des données pour compatibilité
+        // Assurer la compatibilité avec les noms de champs existants
+        const transformedData = data.map(annonce => ({
+            ...annonce,
+            // S'assurer que les champs attendus existent
+            titre: annonce.titre || annonce.title,
+            description: annonce.description || '',
+            prix: annonce.prix || annonce.price,
+            devise: annonce.devise || 'XOF',
+            localisation: annonce.localisation || annonce.location,
+            region: annonce.region,
+            categorie: annonce.categorie,
+            image_principale: annonce.image_principale || annonce.main_image,
+            nom_vendeur: annonce.nom_vendeur || annonce.seller_name,
+            created_at: annonce.created_at,
+            views: annonce.views || 0
+        }));
+        
+        return transformedData || [];
 
     } catch (error) {
         console.error('❌ Exception lors de l\'accès à la base de données:', error);
         return getDefaultAnnonces();
+    }
+}
+
+// MODIFICATION 6: Nouvelle fonction pour insérer une annonce dans Supabase
+/**
+ * Insère une nouvelle annonce dans la base de données Supabase
+ * @param {Object} annonceData - Données de l'annonce à insérer
+ * @returns {Promise<Object>} Résultat de l'opération
+ */
+async function insertAnnonceInSupabase(annonceData) {
+    if (!isSupabaseAvailable()) {
+        console.warn('⚠️ Supabase non disponible, insertion locale uniquement');
+        return { success: false, error: 'Base de données non disponible' };
+    }
+
+    try {
+        console.log('📝 Insertion de l\'annonce dans Supabase...');
+        
+        const { data, error } = await supabase
+            .from('annonces')
+            .insert([{
+                titre: annonceData.titre,
+                description: annonceData.description,
+                prix: annonceData.prix,
+                devise: annonceData.devise || 'XOF',
+                categorie: annonceData.categorie,
+                localisation: annonceData.localisation,
+                region: annonceData.region,
+                image_principale: annonceData.image_principale,
+                nom_vendeur: annonceData.nom_vendeur,
+                telephone: annonceData.telephone,
+                status: 'actif',
+                views: 0,
+                created_at: new Date().toISOString()
+            }])
+            .select();
+
+        if (error) throw error;
+        
+        console.log('✅ Annonce insérée avec succès dans Supabase');
+        return { success: true, data: data[0] };
+        
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'insertion:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// MODIFICATION 7: Nouvelle fonction pour mettre à jour une annonce
+/**
+ * Met à jour une annonce dans Supabase
+ * @param {number} annonceId - ID de l'annonce
+ * @param {Object} updateData - Données à mettre à jour
+ * @returns {Promise<Object>} Résultat de l'opération
+ */
+async function updateAnnonceInSupabase(annonceId, updateData) {
+    if (!isSupabaseAvailable()) {
+        return { success: false, error: 'Base de données non disponible' };
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('annonces')
+            .update(updateData)
+            .eq('id', annonceId)
+            .select();
+
+        if (error) throw error;
+        
+        console.log(`✅ Annonce ${annonceId} mise à jour dans Supabase`);
+        return { success: true, data: data[0] };
+        
+    } catch (error) {
+        console.error('❌ Erreur lors de la mise à jour:', error);
+        return { success: false, error: error.message };
     }
 }
 
@@ -85,10 +199,10 @@ function applyFilters() {
     if (currentFilters.search) {
         const searchTerm = currentFilters.search.toLowerCase();
         filtered = filtered.filter(annonce =>
-            annonce.titre.toLowerCase().includes(searchTerm) ||
-            annonce.description.toLowerCase().includes(searchTerm) ||
-            annonce.localisation.toLowerCase().includes(searchTerm) ||
-            (annonce.region && annonce.region.toLowerCase().includes(searchTerm))
+            (annonce.titre || '').toLowerCase().includes(searchTerm) ||
+            (annonce.description || '').toLowerCase().includes(searchTerm) ||
+            (annonce.localisation || '').toLowerCase().includes(searchTerm) ||
+            (annonce.region || '').toLowerCase().includes(searchTerm)
         );
     }
 
@@ -202,25 +316,32 @@ function createAnnonceCard(annonce) {
     if (annonce.categorie === 'produits') icon = '🥛';
 
     const prix = annonce.prix ? `${annonce.prix.toLocaleString()} ${annonce.devise || 'XOF'}` : 'Prix sur demande';
+    
+    // MODIFICATION 8: Amélioration de la gestion des images
+    let imageUrl = annonce.image_principale || annonce.image || 'assets/images/placeholder.svg';
+    // Vérifier si l'URL est valide
+    if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/') && !imageUrl.startsWith('assets')) {
+        imageUrl = 'assets/images/placeholder.svg';
+    }
 
     card.innerHTML = `
-        <img src="${annonce.image_principale || 'assets/images/placeholder.svg'}" 
-             alt="${annonce.titre}" 
+        <img src="${imageUrl}" 
+             alt="${annonce.titre || 'Annonce'}" 
              class="listing-image"
              onerror="this.src='assets/images/placeholder.svg'">
         
         <div class="listing-content">
-            <h3 class="listing-title">${annonce.titre}</h3>
-            <p class="listing-description">${truncateText(annonce.description, 80)}</p>
+            <h3 class="listing-title">${annonce.titre || 'Sans titre'}</h3>
+            <p class="listing-description">${truncateText(annonce.description || '', 80)}</p>
             
             <div class="listing-meta">
-                <span><i class="fas fa-map-marker-alt"></i> ${annonce.localisation}</span>
+                <span><i class="fas fa-map-marker-alt"></i> ${annonce.localisation || 'Sénégal'}</span>
                 <span><i class="fas fa-tag"></i> ${prix}</span>
             </div>
 
             <div class="listing-tags">
                 <span class="tag tag-type">${icon} ${getCategorieLabel(annonce.categorie)}</span>
-                <span class="tag tag-status">${annonce.status}</span>
+                <span class="tag tag-status">${annonce.status || 'actif'}</span>
             </div>
             
             <a href="annonce-details.html?id=${annonce.id}" class="btn btn-outline" style="width:100%; margin-top:1rem; padding: 0.5rem;">
@@ -261,6 +382,7 @@ function updatePagination() {
             currentPage--;
             displayAnnonces();
             updatePagination();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     });
     paginationContainer.appendChild(prevBtn);
@@ -275,6 +397,7 @@ function updatePagination() {
                 currentPage = i;
                 displayAnnonces();
                 updatePagination();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             });
             paginationContainer.appendChild(pageBtn);
         } else if (i === currentPage - 2 || i === currentPage + 2) {
@@ -295,6 +418,7 @@ function updatePagination() {
             currentPage++;
             displayAnnonces();
             updatePagination();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     });
     paginationContainer.appendChild(nextBtn);
@@ -339,11 +463,15 @@ function getCategorieLabel(categorie) {
         'animaux': 'Animaux',
         'produits': 'Produits',
         'services': 'Services',
-        'materiel': 'Matériel'
+        'materiel': 'Matériel',
+        'bétail': 'Bétail',
+        'volaille': 'Volaille',
+        'équipement': 'Équipement'
     };
-    return labels[categorie] || categorie;
+    return labels[categorie] || categorie || 'Autre';
 }
 
+// MODIFICATION 9: Amélioration des données par défaut
 /**
  * Données par défaut lorsque la base de données n'est pas disponible
  */
@@ -664,8 +792,12 @@ function showNotification(message) {
 function setupFilterEvents() {
     const searchInput = document.querySelector('.search-input');
     if (searchInput) {
+        let searchTimeout;
         searchInput.addEventListener('input', (e) => {
-            updateFilter('search', e.target.value);
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                updateFilter('search', e.target.value);
+            }, 300);
         });
     }
 
@@ -673,7 +805,9 @@ function setupFilterEvents() {
     filterSelects.forEach(select => {
         select.addEventListener('change', (e) => {
             const filterType = e.target.dataset.filter;
-            updateFilter(filterType, e.target.value);
+            if (filterType) {
+                updateFilter(filterType, e.target.value);
+            }
         });
     });
 }
@@ -708,32 +842,62 @@ async function initializePage() {
     console.log('🚀 Initialisation de la page des annonces...');
 
     try {
-        // 1. Vérifier si une nouvelle annonce vient d'être publiée
+        // 1. Afficher un indicateur de chargement
+        const container = document.querySelector('.listings-grid');
+        if (container) {
+            container.innerHTML = `
+                <div class="loading-state" style="grid-column: 1/-1; text-align: center; padding: 50px;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 40px;"></i>
+                    <p>Chargement des annonces...</p>
+                </div>
+            `;
+        }
+
+        // 2. Vérifier si une nouvelle annonce vient d'être publiée
         checkForNewAnnouncement();
 
-        // 2. Récupérer les annonces depuis la base de données locale en priorité
-        let localAnnonces = JSON.parse(localStorage.getItem('local_annonces') || '[]');
-        if (!localAnnonces || localAnnonces.length === 0) {
-            // Si aucune annonce locale, initialiser avec les annonces par défaut (générées à partir des images)
-            const defaults = getDefaultAnnonces();
+        // 3. Essayer de récupérer depuis la base de données Supabase (si disponible)
+        let dbAnnonces = [];
+        if (isSupabaseAvailable()) {
             try {
-                localStorage.setItem('local_annonces', JSON.stringify(defaults));
-                console.log(`💾 Aucune annonce locale trouvée — initialisation avec ${defaults.length} annonces par défaut`);
-            } catch (err) {
-                console.warn('⚠️ Impossible d\'écrire dans localStorage:', err);
+                dbAnnonces = await fetchAllAnnonces();
+                if (dbAnnonces && dbAnnonces.length > 0) {
+                    console.log(`🗄️ ${dbAnnonces.length} annonces récupérées depuis Supabase`);
+                }
+            } catch (dbError) {
+                console.warn('⚠️ Erreur base de données Supabase, utilisation des annonces locales:', dbError);
             }
-            localAnnonces = defaults;
-        } else {
-            console.log(`💾 ${localAnnonces.length} annonces trouvées dans la base de données locale`);
         }
-        allAnnonces = [...localAnnonces];
 
-        // 3. Ajouter les annonces transportées récentes
+        // 4. Récupérer les annonces locales
+        let localAnnonces = JSON.parse(localStorage.getItem('local_annonces') || '[]');
+        
+        // 5. Fusionner les annonces (Supabase d'abord, puis locales sans doublons)
+        if (dbAnnonces && dbAnnonces.length > 0) {
+            allAnnonces = [...dbAnnonces];
+            
+            // Ajouter les annonces locales qui n'existent pas dans Supabase
+            localAnnonces.forEach(localAnnonce => {
+                if (!allAnnonces.find(a => a.id === localAnnonce.id)) {
+                    allAnnonces.push(localAnnonce);
+                }
+            });
+        } else if (localAnnonces.length > 0) {
+            allAnnonces = [...localAnnonces];
+            console.log(`💾 ${allAnnonces.length} annonces trouvées dans la base de données locale`);
+        } else {
+            // Si aucune annonce, utiliser les données par défaut
+            console.log('📋 Aucune annonce trouvée, utilisation des données par défaut');
+            allAnnonces = getDefaultAnnonces();
+            // Sauvegarder les annonces par défaut dans localStorage
+            localStorage.setItem('local_annonces', JSON.stringify(allAnnonces));
+        }
+
+        // 6. Ajouter les annonces transportées récentes
         const recentAnnonces = JSON.parse(localStorage.getItem('recent_annonces') || '[]');
         if (recentAnnonces.length > 0) {
             console.log(`📦 ${recentAnnonces.length} annonces récentes trouvées`);
-
-            // Fusionner avec les annonces locales sans doublons
+            
             recentAnnonces.forEach(recentAnnonce => {
                 if (!allAnnonces.find(a => a.id === recentAnnonce.id)) {
                     allAnnonces.unshift(recentAnnonce);
@@ -741,45 +905,23 @@ async function initializePage() {
             });
         }
 
-        // 4. Essayer de récupérer depuis la base de données Supabase (si disponible)
-        try {
-            const dbAnnonces = await fetchAllAnnonces();
-            if (dbAnnonces && dbAnnonces.length > 0) {
-                console.log(`🗄️ ${dbAnnonces.length} annonces récupérées depuis la base de données Supabase`);
-
-                // Fusionner avec les annonces locales
-                dbAnnonces.forEach(dbAnnonce => {
-                    if (!allAnnonces.find(a => a.id === dbAnnonce.id)) {
-                        allAnnonces.push(dbAnnonce);
-                    }
-                });
-
-                // Trier par date (plus récent d'abord)
-                allAnnonces.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            }
-        } catch (dbError) {
-            console.warn('⚠️ Erreur base de données Supabase, utilisation des annonces locales:', dbError);
-        }
-
-        // 5. Si toujours aucune annonce, utiliser les données par défaut
-        if (allAnnonces.length === 0) {
-            console.log('📋 Aucune annonce trouvée, utilisation des données par défaut');
-            allAnnonces = getDefaultAnnonces();
-        }
-
+        // 7. Trier par date (plus récent d'abord)
+        allAnnonces.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
         filteredAnnonces = [...allAnnonces];
 
-        // 5. Configurer les événements de filtrage
+        // 8. Configurer les événements de filtrage
         setupFilterEvents();
 
-        // 6. Afficher les annonces initiales
+        // 9. Afficher les annonces initiales
         displayAnnonces();
         updatePagination();
 
-        // 7. Configurer le bouton "Charger plus"
+        // 10. Configurer le bouton "Charger plus"
         setupLoadMore();
 
         console.log(`✅ Page des annonces initialisée avec ${allAnnonces.length} annonces`);
+        console.log(`📡 Statut Supabase: ${isSupabaseAvailable() ? 'Connecté' : 'Hors ligne'}`);
 
     } catch (error) {
         console.error('❌ Erreur lors de l\'initialisation de la page:', error);
@@ -808,7 +950,7 @@ document.addEventListener('DOMContentLoaded', initializePage);
  * Synchronise les annonces locales avec la base de données (pour future utilisation)
  */
 async function syncLocalAnnoncesWithDatabase() {
-    if (!supabase) {
+    if (!isSupabaseAvailable()) {
         console.log('⚠️ Base de données non disponible, synchronisation impossible');
         return false;
     }
@@ -826,23 +968,15 @@ async function syncLocalAnnoncesWithDatabase() {
         let syncedCount = 0;
 
         for (const annonce of localAnnonces) {
-            if (annonce.source === 'local') {
+            if (annonce.source === 'local' || !annonce.id_supabase) {
                 try {
-                    // Insérer l'annonce dans la base de données
-                    const { data, error } = await supabase
-                        .from('annonces')
-                        .insert([annonce])
-                        .select();
-
-                    if (error) throw error;
-
-                    // Marquer comme synchronisée
-                    annonce.source = 'database';
-                    annonce.database_id = data[0].id;
-                    syncedCount++;
-
-                    console.log(`✅ Annonce synchronisée: ${annonce.titre}`);
-
+                    const result = await insertAnnonceInSupabase(annonce);
+                    if (result.success) {
+                        annonce.source = 'database';
+                        annonce.id_supabase = result.data.id;
+                        syncedCount++;
+                        console.log(`✅ Annonce synchronisée: ${annonce.titre}`);
+                    }
                 } catch (error) {
                     console.error(`❌ Erreur synchronisation de ${annonce.titre}:`, error);
                 }
@@ -890,16 +1024,39 @@ function exportLocalAnnonces() {
     showNotification(`📤 ${localAnnonces.length} annonces exportées`);
 }
 
+// MODIFICATION 10: Sauvegarde périodique dans Supabase
+/**
+ * Sauvegarde périodique des nouvelles annonces dans Supabase
+ */
+async function periodicSyncToSupabase() {
+    // Vérifier toutes les 5 minutes
+    setInterval(async () => {
+        if (isSupabaseAvailable()) {
+            await syncLocalAnnoncesWithDatabase();
+        }
+    }, 5 * 60 * 1000);
+}
+
+// Démarrer la synchronisation périodique après initialisation
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        periodicSyncToSupabase();
+    }, 10000); // Attendre 10 secondes après le chargement
+});
+
 // Exporter des fonctions pour un usage global
 window.AnnoncesManager = {
     refreshAnnonces: fetchAllAnnonces,
     updateFilter: updateFilter,
     getAnnonceById: (id) => allAnnonces.find(a => a.id == id),
-    databaseStatus: () => supabase ? 'connecté' : 'hors ligne',
+    databaseStatus: () => isSupabaseAvailable() ? 'connecté' : 'hors ligne',
     syncWithDatabase: syncLocalAnnoncesWithDatabase,
     exportAnnonces: exportLocalAnnonces,
     getLocalAnnonces: () => JSON.parse(localStorage.getItem('local_annonces') || '[]'),
-    clearLocalAnnonces: () => localStorage.removeItem('local_annonces')
+    clearLocalAnnonces: () => localStorage.removeItem('local_annonces'),
+    insertAnnonce: insertAnnonceInSupabase,
+    updateAnnonce: updateAnnonceInSupabase
 };
 
 console.log('✅ Script annonces.js chargé - Prêt pour la base de données');
+console.log('🔗 Connexion Supabase configurée avec l\'URL:', SUPABASE_URL);

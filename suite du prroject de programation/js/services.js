@@ -2,9 +2,21 @@
  * Fichier: services.js
  * Description: Script pour la page Services de Sénégal Élevage
  * Gestion de l'affichage, du filtrage et de la recherche des services d'élevage
- * Version: 1.0.0
+ * Version: 2.0.0
  * Auteur: Sénégal Élevage Team
  */
+
+// ============================================================================
+// CONFIGURATION SUPABASE (Base de données PostgreSQL)
+// ============================================================================
+
+// MODIFICATION 1: Ajout de la configuration Supabase
+const SUPABASE_URL = 'https://mykmnwdeqwtpnnsvnlkf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15a21ud2RlcXd0cG5uc3ZubGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mjg5NzEsImV4cCI6MjA5MjUwNDk3MX0.Im2wNcNeRIH4ToI694EWvVQ4N5pW5FcukP_kFjuUHag';
+
+// MODIFICATION 2: Variables globales Supabase
+let supabaseClient = null;
+let isUsingSupabase = false;
 
 // ============================================================================
 // VARIABLES GLOBALES ET CONFIGURATION
@@ -47,17 +59,135 @@ const CATEGORY_ICONS = {
     maintenance: '🔧'
 };
 
+// Mapping des catégories pour Supabase
+const CATEGORY_MAPPING = {
+    'veterinaire': 'service_veterinaire',
+    'transport': 'service_transport',
+    'alimentation': 'service_alimentation',
+    'conseil': 'service_conseil',
+    'abattage': 'service_abattage',
+    'maintenance': 'service_maintenance'
+};
+
 // ============================================================================
-// DONNÉES DES SERVICES
+// FONCTIONS D'INTERACTION AVEC SUPABASE
 // ============================================================================
 
-/**
- * Retourne les données des services
- * @returns {Array} Liste des services
- */
+// MODIFICATION 3: Initialisation de Supabase
+async function initSupabase() {
+    try {
+        if (typeof supabase !== 'undefined') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Connexion Supabase établie pour la page Services');
+            
+            // Tester la connexion
+            const { data, error } = await supabaseClient
+                .from('services')
+                .select('count', { count: 'exact', head: true });
+            
+            if (!error) {
+                isUsingSupabase = true;
+                console.log('✅ Table services accessible');
+            } else if (error.message.includes('does not exist')) {
+                console.warn('⚠️ Table "services" non trouvée, utilisation des données locales');
+            }
+        } else {
+            console.warn('⚠️ Client Supabase non trouvé, mode hors ligne');
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation Supabase:', error);
+    }
+}
+
+// MODIFICATION 4: Récupération des services depuis Supabase
+async function fetchServicesFromSupabase() {
+    if (!supabaseClient) return null;
+    
+    try {
+        console.log('📡 Récupération des services depuis Supabase...');
+        
+        const { data, error } = await supabaseClient
+            .from('services')
+            .select('*')
+            .eq('status', 'actif')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+            console.log(`✅ ${data.length} services récupérés depuis Supabase`);
+            return data.map(service => transformSupabaseToService(service));
+        }
+        
+        return [];
+        
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération des services:', error);
+        return null;
+    }
+}
+
+// MODIFICATION 5: Transformation des données Supabase vers format service
+function transformSupabaseToService(service) {
+    // Déterminer la catégorie
+    let category = determineServiceCategory(service);
+    
+    return {
+        id: service.id,
+        title: service.titre || service.title,
+        category: category,
+        price: service.prix || service.price || 0,
+        currency: service.devise || 'XOF',
+        description: service.description || '',
+        provider: service.prestataire || service.provider || service.nom_vendeur,
+        location: service.localisation || service.location,
+        region: service.region,
+        phone: service.telephone || service.phone,
+        availability: service.disponibilite || service.availability || '48h',
+        rating: service.note || service.rating || 4.5,
+        reviews: service.nombre_avis || service.reviews || 0,
+        certified: service.certifie || service.certified || false,
+        urgent: service.urgent || false,
+        created_at: service.created_at,
+        image_url: service.image_principale || service.image_url
+    };
+}
+
+// MODIFICATION 6: Détermination de la catégorie du service
+function determineServiceCategory(service) {
+    const categorie = service.categorie || service.category || '';
+    const title = (service.titre || service.title || '').toLowerCase();
+    const description = (service.description || '').toLowerCase();
+    const searchText = title + ' ' + description;
+    
+    if (categorie === 'veterinaire' || searchText.includes('vétérinaire') || searchText.includes('veterinaire') || searchText.includes('clinique')) {
+        return 'veterinaire';
+    }
+    if (categorie === 'transport' || searchText.includes('transport') || searchText.includes('livraison')) {
+        return 'transport';
+    }
+    if (categorie === 'alimentation' || searchText.includes('aliment') || searchText.includes('nutrition')) {
+        return 'alimentation';
+    }
+    if (categorie === 'conseil' || searchText.includes('conseil') || searchText.includes('formation') || searchText.includes('audit')) {
+        return 'conseil';
+    }
+    if (categorie === 'abattage' || searchText.includes('abattage') || searchText.includes('transformation')) {
+        return 'abattage';
+    }
+    if (categorie === 'maintenance' || searchText.includes('maintenance') || searchText.includes('réparation')) {
+        return 'maintenance';
+    }
+    
+    return 'conseil'; // Par défaut
+}
+
+// ============================================================================
+// DONNÉES DES SERVICES (LOCALES - FALLBACK)
+// ============================================================================
+
 function getServicesData() {
     return [
-        // Services vétérinaires
         {
             id: 1,
             title: 'Consultation vétérinaire à domicile',
@@ -94,8 +224,6 @@ function getServicesData() {
             urgent: false,
             created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
         },
-
-        // Transport
         {
             id: 3,
             title: 'Transport de bétail national',
@@ -132,8 +260,6 @@ function getServicesData() {
             urgent: true,
             created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
         },
-
-        // Alimentation
         {
             id: 5,
             title: 'Conseil en alimentation bétail',
@@ -152,8 +278,6 @@ function getServicesData() {
             urgent: false,
             created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
         },
-
-        // Conseil & Formation
         {
             id: 6,
             title: 'Formation en élevage moderne',
@@ -190,8 +314,6 @@ function getServicesData() {
             urgent: false,
             created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
         },
-
-        // Abattage & Transformation
         {
             id: 8,
             title: 'Service d\'abattage certifié',
@@ -210,8 +332,6 @@ function getServicesData() {
             urgent: true,
             created_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
         },
-
-        // Maintenance & Réparation
         {
             id: 9,
             title: 'Maintenance d\'équipement d\'élevage',
@@ -237,37 +357,105 @@ function getServicesData() {
 // FONCTIONS D'INITIALISATION
 // ============================================================================
 
-/**
- * Initialise la page services
- */
-function initializeServicesPage() {
+// MODIFICATION 7: Initialisation asynchrone avec Supabase
+async function initializeServicesPage() {
     console.log('🚀 Initialisation de la page Services...');
+    
+    // Afficher l'indicateur de chargement
+    showLoadingIndicator();
 
     try {
-        // 1. Charger les données
-        allServices = getServicesData();
-        filteredServices = [...allServices];
-
-        // 2. Configurer les événements
+        // 1. Initialiser Supabase
+        await initSupabase();
+        
+        // 2. Charger les données
+        await loadServicesData();
+        
+        // 3. Configurer les événements
         setupCategoryEvents();
         setupFilterEvents();
         setupSearchEvents();
         setupLoadMoreEvents();
-
-        // 3. Appliquer les filtres initiaux
+        
+        // 4. Appliquer les filtres initiaux
         applyFilters();
-
-        // 4. Afficher les résultats
+        
+        // 5. Afficher les résultats
         displayServices();
-
-        // 5. Afficher les services vedettes
+        
+        // 6. Afficher les services vedettes
         displayFeaturedServices();
-
+        
+        // Afficher le statut de connexion
+        showConnectionStatus();
+        
         console.log(`✅ Page Services initialisée avec ${allServices.length} services`);
+        console.log(`📡 Statut Supabase: ${isUsingSupabase ? 'Connecté' : 'Hors ligne'}`);
 
     } catch (error) {
         console.error('❌ Erreur lors de l\'initialisation:', error);
         showError('Erreur lors du chargement des services');
+    } finally {
+        hideLoadingIndicator();
+    }
+}
+
+// MODIFICATION 8: Chargement des données avec priorité Supabase
+async function loadServicesData() {
+    // Tenter de charger depuis Supabase
+    if (isUsingSupabase) {
+        const supabaseData = await fetchServicesFromSupabase();
+        if (supabaseData && supabaseData.length > 0) {
+            allServices = supabaseData;
+            console.log(`✅ ${allServices.length} services chargés depuis Supabase`);
+            
+            // Mettre à jour le cache local
+            localStorage.setItem('services_data', JSON.stringify(allServices));
+            return;
+        }
+    }
+    
+    // Fallback: Charger depuis localStorage
+    const cachedData = localStorage.getItem('services_data');
+    if (cachedData) {
+        try {
+            allServices = JSON.parse(cachedData);
+            console.log(`💾 ${allServices.length} services chargés depuis le cache`);
+            return;
+        } catch (e) {
+            console.warn('Erreur lors du chargement du cache');
+        }
+    }
+    
+    // Dernier recours: Données par défaut
+    allServices = getServicesData();
+    console.log(`📋 ${allServices.length} services chargés depuis les données par défaut`);
+    
+    // Sauvegarder dans localStorage
+    localStorage.setItem('services_data', JSON.stringify(allServices));
+}
+
+function showLoadingIndicator() {
+    const container = document.getElementById('services-container');
+    if (container) {
+        container.innerHTML = `
+            <div class="loading-state" style="grid-column: 1/-1; text-align: center; padding: 50px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 40px; color: #006837;"></i>
+                <p>Chargement des services...</p>
+            </div>
+        `;
+    }
+}
+
+function hideLoadingIndicator() {
+    // L'indicateur sera remplacé par le contenu réel
+}
+
+function showConnectionStatus() {
+    if (isUsingSupabase) {
+        console.log('📡 Mode: Connecté à Supabase (services en ligne)');
+    } else {
+        console.log('📴 Mode: Hors ligne (services locaux)');
     }
 }
 
@@ -275,9 +463,6 @@ function initializeServicesPage() {
 // FONCTIONS D'AFFICHAGE
 // ============================================================================
 
-/**
- * Affiche les services
- */
 function displayServices() {
     const container = document.getElementById('services-container');
     if (!container) {
@@ -285,15 +470,12 @@ function displayServices() {
         return;
     }
 
-    // Calculer les services à afficher pour la pagination
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const servicesToShow = filteredServices.slice(startIndex, endIndex);
 
-    // Vider le conteneur
     container.innerHTML = '';
 
-    // Afficher un message si aucun résultat
     if (servicesToShow.length === 0) {
         container.innerHTML = `
             <div class="no-results">
@@ -306,30 +488,22 @@ function displayServices() {
         return;
     }
 
-    // Créer et afficher chaque service
     servicesToShow.forEach(service => {
         const card = createServiceCard(service);
         container.appendChild(card);
     });
 
-    // Mettre à jour le compteur de résultats
     updateResultsCount();
-
-    // Mettre à jour le bouton "charger plus"
     const hasMore = endIndex < filteredServices.length;
     updateLoadMoreButton(hasMore);
 
     console.log(`📋 Affichage de ${servicesToShow.length} services (page ${currentPage})`);
 }
 
-/**
- * Affiche les services vedettes
- */
 function displayFeaturedServices() {
     const container = document.getElementById('featured-container');
     if (!container) return;
 
-    // Prendre les 3 services les mieux notés
     const featuredServices = allServices
         .filter(service => service.certified)
         .sort((a, b) => b.rating - a.rating)
@@ -351,16 +525,10 @@ function displayFeaturedServices() {
     `).join('');
 }
 
-/**
- * Crée une carte de service
- * @param {Object} service - Données du service
- * @returns {HTMLElement} Carte du service
- */
 function createServiceCard(service) {
     const card = document.createElement('div');
     card.className = 'service-card';
 
-    // Formater le prix
     const formattedPrice = `${service.price.toLocaleString()} ${service.currency}`;
 
     card.innerHTML = `
@@ -368,7 +536,7 @@ function createServiceCard(service) {
             <div class="service-icon">
                 <i class="fas ${getServiceIcon(service.category)}"></i>
             </div>
-            <h3 class="service-title">${SERVICE_CATEGORIES[service.category]}</h3>
+            <h3 class="service-title">${SERVICE_CATEGORIES[service.category] || service.category}</h3>
         </div>
         
         <div class="service-info">
@@ -417,7 +585,6 @@ function createServiceCard(service) {
         </div>
     `;
 
-    // Ajouter les événements aux boutons
     const contactBtn = card.querySelector('.contact-btn');
     const detailsBtn = card.querySelector('.details-btn');
 
@@ -427,11 +594,6 @@ function createServiceCard(service) {
     return card;
 }
 
-/**
- * Retourne l'icône Font Awesome pour une catégorie
- * @param {string} category - Catégorie du service
- * @returns {string} Classe Font Awesome
- */
 function getServiceIcon(category) {
     const icons = {
         veterinaire: 'fa-stethoscope',
@@ -444,11 +606,6 @@ function getServiceIcon(category) {
     return icons[category] || 'fa-handshake';
 }
 
-/**
- * Génère les étoiles de notation
- * @param {number} rating - Note du service
- * @returns {string} HTML des étoiles
- */
 function generateStars(rating) {
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
@@ -456,40 +613,26 @@ function generateStars(rating) {
 
     let stars = '';
 
-    // Étoiles pleines
     for (let i = 0; i < fullStars; i++) {
-        stars += '<i class="fas fa-star"></i>';
+        stars += '<i class="fas fa-star" style="color: #ffc107;"></i>';
     }
 
-    // Demi-étoile
     if (hasHalfStar) {
-        stars += '<i class="fas fa-star-half-alt"></i>';
+        stars += '<i class="fas fa-star-half-alt" style="color: #ffc107;"></i>';
     }
 
-    // Étoiles vides
     for (let i = 0; i < emptyStars; i++) {
-        stars += '<i class="far fa-star"></i>';
+        stars += '<i class="far fa-star" style="color: #ffc107;"></i>';
     }
 
     return stars;
 }
 
-/**
- * Tronque un texte à une longueur spécifique
- * @param {string} text - Texte à tronquer
- * @param {number} maxLength - Longueur maximale
- * @returns {string} Texte tronqué
- */
 function truncateText(text, maxLength) {
-    if (!text || text.length <= maxLength) return text;
+    if (!text || text.length <= maxLength) return text || '';
     return text.substring(0, maxLength) + '...';
 }
 
-/**
- * Retourne le texte de disponibilité
- * @param {string} availability - Code de disponibilité
- * @returns {string} Texte formaté
- */
 function getAvailabilityText(availability) {
     const texts = {
         'immediate': 'Immédiat',
@@ -500,9 +643,6 @@ function getAvailabilityText(availability) {
     return texts[availability] || availability;
 }
 
-/**
- * Met à jour le compteur de résultats
- */
 function updateResultsCount() {
     const countElement = document.getElementById('results-count');
     if (countElement) {
@@ -510,10 +650,6 @@ function updateResultsCount() {
     }
 }
 
-/**
- * Met à jour le bouton "charger plus"
- * @param {boolean} hasMore - S'il y a plus de résultats
- */
 function updateLoadMoreButton(hasMore) {
     const loadMoreBtn = document.getElementById('load-more-btn');
     if (!loadMoreBtn) return;
@@ -530,25 +666,15 @@ function updateLoadMoreButton(hasMore) {
 // FONCTIONS DE FILTRAGE ET RECHERCHE
 // ============================================================================
 
-/**
- * Configure les événements des catégories
- */
 function setupCategoryEvents() {
     const categoryButtons = document.querySelectorAll('.service-category-btn');
 
     categoryButtons.forEach(button => {
         button.addEventListener('click', () => {
-            // Retirer la classe active de tous les boutons
             categoryButtons.forEach(btn => btn.classList.remove('active'));
-
-            // Ajouter la classe active au bouton cliqué
             button.classList.add('active');
-
-            // Mettre à jour la catégorie courante
             currentCategory = button.dataset.category;
             currentPage = 1;
-
-            // Appliquer les filtres
             applyFilters();
         });
     });
@@ -556,9 +682,6 @@ function setupCategoryEvents() {
     console.log('✅ Événements des catégories configurés');
 }
 
-/**
- * Configure les événements des filtres
- */
 function setupFilterEvents() {
     const filterElements = {
         'region-filter': 'region',
@@ -581,14 +704,10 @@ function setupFilterEvents() {
     console.log('✅ Événements des filtres configurés');
 }
 
-/**
- * Configure les événements de recherche
- */
 function setupSearchEvents() {
     const searchInput = document.getElementById('search-input');
 
     if (searchInput) {
-        // Recherche en temps réel avec debounce
         let searchTimeout;
         searchInput.addEventListener('input', (e) => {
             clearTimeout(searchTimeout);
@@ -603,43 +722,33 @@ function setupSearchEvents() {
     console.log('✅ Événements de recherche configurés');
 }
 
-/**
- * Configure les événements du bouton "charger plus"
- */
 function setupLoadMoreEvents() {
     const loadMoreBtn = document.getElementById('load-more-btn');
     if (loadMoreBtn) {
         loadMoreBtn.addEventListener('click', () => {
             currentPage++;
             displayServices();
+            window.scrollTo({ top: document.querySelector('.services-section')?.offsetTop || 0, behavior: 'smooth' });
         });
     }
 
     console.log('✅ Événements du bouton "charger plus" configurés');
 }
 
-/**
- * Applique tous les filtres actifs
- */
 function applyFilters() {
     console.log('🔍 Application des filtres:', currentFilters);
 
-    // Filtrer les services
     filteredServices = allServices.filter(service => {
-        // Filtre par catégorie
         const categoryMatch = currentCategory === 'all' || service.category === currentCategory;
-
-        // Filtre par recherche
+        
         const searchMatch = currentFilters.search === '' ||
-            service.title.toLowerCase().includes(currentFilters.search) ||
-            service.description.toLowerCase().includes(currentFilters.search) ||
-            service.provider.toLowerCase().includes(currentFilters.search) ||
-            service.location.toLowerCase().includes(currentFilters.search);
-
-        // Filtre par région
+            (service.title || '').toLowerCase().includes(currentFilters.search) ||
+            (service.description || '').toLowerCase().includes(currentFilters.search) ||
+            (service.provider || '').toLowerCase().includes(currentFilters.search) ||
+            (service.location || '').toLowerCase().includes(currentFilters.search);
+        
         const regionMatch = currentFilters.region === '' || service.region === currentFilters.region;
-
-        // Filtre par prix
+        
         let priceMatch = true;
         if (currentFilters.priceMin) {
             priceMatch = priceMatch && service.price >= parseInt(currentFilters.priceMin);
@@ -647,37 +756,24 @@ function applyFilters() {
         if (currentFilters.priceMax) {
             priceMatch = priceMatch && service.price <= parseInt(currentFilters.priceMax);
         }
-
-        // Filtre par disponibilité
+        
         const availabilityMatch = currentFilters.availability === '' ||
             service.availability === currentFilters.availability;
-
+        
         return categoryMatch && searchMatch && regionMatch && priceMatch && availabilityMatch;
     });
 
-    // Appliquer le tri
     sortServices();
-
-    // Afficher les résultats
     displayServices();
 
     console.log(`📊 Filtres appliqués: ${filteredServices.length}/${allServices.length} services affichés`);
 }
 
-/**
- * Applique le tri aux services filtrés
- */
 function sortServices() {
-    // Tri par défaut : les plus récents et les mieux notés d'abord
     filteredServices.sort((a, b) => {
-        // Priorité aux services urgents
         if (a.urgent && !b.urgent) return -1;
         if (!a.urgent && b.urgent) return 1;
-
-        // Ensuite par note
         if (a.rating !== b.rating) return b.rating - a.rating;
-
-        // Enfin par date
         return new Date(b.created_at) - new Date(a.created_at);
     });
 }
@@ -686,10 +782,6 @@ function sortServices() {
 // FONCTIONS D'INTERACTION
 // ============================================================================
 
-/**
- * Contacte le prestataire de service via WhatsApp
- * @param {Object} service - Service concerné
- */
 function contactServiceProvider(service) {
     console.log(`📱 Contact WhatsApp du prestataire pour: ${service.title}`);
 
@@ -702,15 +794,9 @@ function contactServiceProvider(service) {
     );
 
     window.open(`https://wa.me/${fullPhone}?text=${message}`, '_blank');
-
-    // Sauvegarder la demande localement
     saveServiceRequest(service);
 }
 
-/**
- * Affiche les détails d'un service
- * @param {Object} service - Service à afficher
- */
 function showServiceDetails(service) {
     console.log(`📋 Affichage des détails pour: ${service.title}`);
 
@@ -719,7 +805,7 @@ function showServiceDetails(service) {
         
         📝 Description: ${service.description}
         
-        🏷️ Catégorie: ${SERVICE_CATEGORIES[service.category]}
+        🏷️ Catégorie: ${SERVICE_CATEGORIES[service.category] || service.category}
         
         💰 Prix: ${service.price.toLocaleString()} ${service.currency}
         
@@ -743,10 +829,6 @@ function showServiceDetails(service) {
     alert(details);
 }
 
-/**
- * Sauvegarde une demande de service localement
- * @param {Object} service - Service concerné
- */
 function saveServiceRequest(service) {
     try {
         const requests = JSON.parse(localStorage.getItem('service_requests') || '[]');
@@ -759,16 +841,12 @@ function saveServiceRequest(service) {
             phone: service.phone,
             location: service.location,
             price: service.price,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            synced: isUsingSupabase
         };
 
         requests.unshift(newRequest);
-
-        // Garder seulement les 100 dernières demandes
-        if (requests.length > 100) {
-            requests.splice(100);
-        }
-
+        if (requests.length > 100) requests.splice(100);
         localStorage.setItem('service_requests', JSON.stringify(requests));
         console.log('💾 Demande de service sauvegardée localement');
     } catch (error) {
@@ -776,77 +854,33 @@ function saveServiceRequest(service) {
     }
 }
 
-/**
- * Affiche une notification à l'utilisateur
- * @param {string} message - Message à afficher
- */
-function showNotification(message) {
+function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
-    notification.className = 'notification';
+    notification.className = `notification ${type}`;
     notification.innerHTML = `
-        <i class="fas fa-check-circle"></i>
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i>
         <span>${message}</span>
         <button class="notification-close" onclick="this.parentElement.remove()">
             <i class="fas fa-times"></i>
         </button>
     `;
-
     document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 100);
-
+    setTimeout(() => notification.classList.add('show'), 100);
     setTimeout(() => {
         notification.classList.remove('show');
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
-            }
-        }, 300);
+        setTimeout(() => notification.remove(), 300);
     }, 5000);
-
     console.log('🔔 Notification affichée:', message);
 }
 
-/**
- * Affiche un message d'erreur
- * @param {string} message - Message d'erreur
- */
 function showError(message) {
-    const notification = document.createElement('div');
-    notification.className = 'notification error';
-    notification.innerHTML = `
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>${message}</span>
-        <button class="notification-close" onclick="this.parentElement.remove()">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 100);
-
-    setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
-            }
-        }, 300);
-    }, 5000);
-
-    console.error('❌ Erreur affichée:', message);
+    showNotification(message, 'error');
 }
 
 // ============================================================================
 // EXPORT ET INITIALISATION
 // ============================================================================
 
-// Exporter les fonctions pour usage global
 window.ServicesManager = {
     getServices: () => [...allServices],
     getFilteredServices: () => [...filteredServices],
@@ -854,10 +888,11 @@ window.ServicesManager = {
     getCurrentFilters: () => ({ ...currentFilters }),
     refreshServices: () => applyFilters(),
     contactProvider: contactServiceProvider,
-    showDetails: showServiceDetails
+    showDetails: showServiceDetails,
+    isOnline: () => isUsingSupabase
 };
 
-// Initialiser quand le DOM est chargé
 document.addEventListener('DOMContentLoaded', initializeServicesPage);
 
 console.log('✅ Script services.js chargé - Prêt pour la page services');
+console.log(`🔗 Connexion Supabase configurée avec l'URL: ${SUPABASE_URL}`);

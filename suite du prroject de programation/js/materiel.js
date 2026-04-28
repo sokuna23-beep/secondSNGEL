@@ -2,9 +2,22 @@
  * Fichier: materiel.js
  * Description: Script pour la page du matériel d'élevage
  * Gestion de l'affichage, du filtrage et de la recherche des équipements
- * Version: 1.0.0
+ * Version: 2.0.0
  * Auteur: Sénégal Élevage Team
  */
+
+// ============================================================================
+// CONFIGURATION SUPABASE (Base de données PostgreSQL)
+// ============================================================================
+
+// MODIFICATION 1: Ajout de la configuration Supabase
+// Configuration de la connexion à la base de données Supabase
+const SUPABASE_URL = 'https://mykmnwdeqwtpnnsvnlkf.supabase.co'; // URL du projet Supabase
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15a21ud2RlcXd0cG5uc3ZubGtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Mjg5NzEsImV4cCI6MjA5MjUwNDk3MX0.Im2wNcNeRIH4ToI694EWvVQ4N5pW5FcukP_kFjuUHag'; // Clé publique pour l'accès anonyme
+
+// MODIFICATION 2: Variable globale pour le client Supabase
+let supabaseClient = null;
+let isUsingSupabase = false;
 
 // ============================================================================
 // VARIABLES GLOBALES ET CONFIGURATION
@@ -27,6 +40,16 @@ const CATEGORIES = {
     cloture: 'Clôtures et enclos'
 };
 
+// MODIFICATION 3: Mapping des catégories pour compatibilité Supabase
+const CATEGORY_MAPPING = {
+    'bovin': 'bovins',
+    'ovin': 'ovins',
+    'avicole': 'avicole',
+    'veterinaire': 'veterinaire',
+    'alimentation': 'alimentation',
+    'cloture': 'cloture'
+};
+
 // Configuration des icônes par catégorie
 const CATEGORY_ICONS = {
     bovin: '🐄',
@@ -36,6 +59,180 @@ const CATEGORY_ICONS = {
     alimentation: '🌾',
     cloture: '🚧'
 };
+
+// ============================================================================
+// FONCTIONS D'INTERACTION AVEC SUPABASE
+// ============================================================================
+
+// MODIFICATION 4: Initialisation de Supabase
+/**
+ * Initialise la connexion à Supabase
+ */
+async function initSupabase() {
+    try {
+        if (typeof supabase !== 'undefined') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Connexion Supabase établie pour la page matériel');
+            
+            // Tester la connexion
+            const { data, error } = await supabaseClient
+                .from('annonces')
+                .select('count', { count: 'exact', head: true })
+                .eq('categorie', 'materiaux')
+                .eq('status', 'actif');
+            
+            if (!error) {
+                isUsingSupabase = true;
+                console.log('✅ Base de données accessible pour le matériel');
+            } else {
+                console.warn('⚠️ Table annonces non accessible, utilisation des données locales');
+            }
+        } else {
+            console.warn('⚠️ Client Supabase non trouvé, mode hors ligne');
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation Supabase:', error);
+    }
+}
+
+// MODIFICATION 5: Récupération des produits depuis Supabase
+/**
+ * Récupère les produits de matériel depuis Supabase
+ * @returns {Promise<Array>} Liste des produits
+ */
+async function fetchProductsFromSupabase() {
+    if (!supabaseClient) return null;
+    
+    try {
+        console.log('📡 Récupération des produits de matériel depuis Supabase...');
+        
+        const { data, error } = await supabaseClient
+            .from('annonces')
+            .select('*')
+            .eq('categorie', 'materiaux')
+            .eq('status', 'actif')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+            console.log(`✅ ${data.length} produits de matériel récupérés depuis Supabase`);
+            return data.map(annonce => transformSupabaseToProduct(annonce));
+        }
+        
+        return [];
+        
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération depuis Supabase:', error);
+        return null;
+    }
+}
+
+// MODIFICATION 6: Transformation des données Supabase vers format produit
+/**
+ * Transforme une annonce Supabase en format produit
+ * @param {Object} annonce - Annonce depuis Supabase
+ * @returns {Object} Produit formaté pour la page matériel
+ */
+function transformSupabaseToProduct(annonce) {
+    // Déterminer la catégorie à partir des tags ou du titre
+    let category = determineProductCategory(annonce);
+    
+    return {
+        id: annonce.id,
+        name: annonce.titre || annonce.title,
+        category: category,
+        price: annonce.prix || annonce.price || 0,
+        currency: annonce.devise || annonce.currency || 'XOF',
+        description: annonce.description || '',
+        image: annonce.image_principale || annonce.main_image || 'assets/images/placeholder.svg',
+        stock: annonce.stock || 10,
+        rating: annonce.note || annonce.rating || 4.0,
+        reviews: annonce.avis || annonce.reviews || 0,
+        vendor: annonce.nom_vendeur || annonce.seller_name || 'Fournisseur',
+        location: annonce.localisation || annonce.location || 'Sénégal',
+        delivery: annonce.livraison_possible || annonce.delivery || false,
+        featured: annonce.annonce_vedette || annonce.featured || false,
+        phone: annonce.telephone || annonce.phone,
+        created_at: annonce.created_at
+    };
+}
+
+// MODIFICATION 7: Détermination de la catégorie produit
+/**
+ * Détermine la catégorie d'un produit à partir de l'annonce
+ * @param {Object} annonce - Annonce Supabase
+ * @returns {string} Catégorie
+ */
+function determineProductCategory(annonce) {
+    // Si une sous-catégorie est spécifiée
+    if (annonce.sous_categorie) {
+        for (const [key, value] of Object.entries(CATEGORY_MAPPING)) {
+            if (value === annonce.sous_categorie || key === annonce.sous_categorie) {
+                return key;
+            }
+        }
+    }
+    
+    // Sinon, déterminer par le titre et la description
+    const title = (annonce.titre || annonce.title || '').toLowerCase();
+    const description = (annonce.description || '').toLowerCase();
+    const searchText = title + ' ' + description;
+    
+    if (searchText.includes('abreuvoir') || searchText.includes('mangeoire') || searchText.includes('bovin')) {
+        return 'bovin';
+    }
+    if (searchText.includes('mouton') || searchText.includes('chèvre') || searchText.includes('ovin') || searchText.includes('caprin')) {
+        return 'ovin';
+    }
+    if (searchText.includes('poule') || searchText.includes('volaille') || searchText.includes('avicole')) {
+        return 'avicole';
+    }
+    if (searchText.includes('vaccin') || searchText.includes('seringue') || searchText.includes('vétérinaire')) {
+        return 'veterinaire';
+    }
+    if (searchText.includes('aliment') || searchText.includes('concentré') || searchText.includes('nutrition')) {
+        return 'alimentation';
+    }
+    if (searchText.includes('clôture') || searchText.includes('enclos') || searchText.includes('barrière')) {
+        return 'cloture';
+    }
+    
+    return 'bovin'; // Par défaut
+}
+
+// MODIFICATION 8: Sauvegarde d'une demande de contact dans Supabase
+/**
+ * Sauvegarde une demande de contact dans Supabase
+ * @param {Object} requestData - Données de la demande
+ * @returns {Promise<boolean>} Succès de l'opération
+ */
+async function saveContactRequestToSupabase(requestData) {
+    if (!supabaseClient) return false;
+    
+    try {
+        const { error } = await supabaseClient
+            .from('messages')
+            .insert([{
+                nom: requestData.userName,
+                email: requestData.userEmail || '',
+                telephone: requestData.userPhone,
+                sujet: `Demande matériel - Produit #${requestData.productId}`,
+                message: requestData.userMessage,
+                status: 'non_lu',
+                created_at: new Date().toISOString()
+            }]);
+        
+        if (error) throw error;
+        
+        console.log('✅ Demande de contact sauvegardée dans Supabase');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Erreur lors de la sauvegarde dans Supabase:', error);
+        return false;
+    }
+}
 
 // ============================================================================
 // DONNÉES DES PRODUITS (Base de données locale)
@@ -62,7 +259,8 @@ function getProductsData() {
             vendor: 'ÉquipPro Sénégal',
             location: 'Dakar',
             delivery: true,
-            featured: true
+            featured: true,
+            phone: '+221 77 123 45 67'
         },
         {
             id: 2,
@@ -78,7 +276,8 @@ function getProductsData() {
             vendor: 'Bétail Plus',
             location: 'Thiès',
             delivery: true,
-            featured: false
+            featured: false,
+            phone: '+221 76 234 56 78'
         },
 
         // Équipement ovin/caprin
@@ -96,7 +295,8 @@ function getProductsData() {
             vendor: 'Petit Élevage Pro',
             location: 'Kaolack',
             delivery: true,
-            featured: true
+            featured: true,
+            phone: '+221 77 345 67 89'
         },
 
         // Équipement avicole
@@ -114,7 +314,8 @@ function getProductsData() {
             vendor: 'Avicole Expert',
             location: 'Saint-Louis',
             delivery: false,
-            featured: false
+            featured: false,
+            phone: '+221 78 456 78 90'
         },
         {
             id: 5,
@@ -130,7 +331,8 @@ function getProductsData() {
             vendor: 'Volaille Pro',
             location: 'Dakar',
             delivery: true,
-            featured: true
+            featured: true,
+            phone: '+221 77 567 89 01'
         },
 
         // Matériel vétérinaire
@@ -148,7 +350,8 @@ function getProductsData() {
             vendor: 'Veto Supply',
             location: 'Dakar',
             delivery: true,
-            featured: false
+            featured: false,
+            phone: '+221 76 678 90 12'
         },
 
         // Alimentation
@@ -166,7 +369,8 @@ function getProductsData() {
             vendor: 'NutriBétail',
             location: 'Kaolack',
             delivery: true,
-            featured: true
+            featured: true,
+            phone: '+221 77 789 01 23'
         },
 
         // Clôtures
@@ -184,7 +388,8 @@ function getProductsData() {
             vendor: 'Clôture Pro',
             location: 'Thiès',
             delivery: true,
-            featured: false
+            featured: false,
+            phone: '+221 76 890 12 34'
         }
     ];
 }
@@ -193,33 +398,129 @@ function getProductsData() {
 // FONCTIONS D'AFFICHAGE
 // ============================================================================
 
+// MODIFICATION 9: Initialisation asynchrone avec Supabase
 /**
  * Initialise la page des produits
  */
-function initializeProductsPage() {
+async function initializeProductsPage() {
     console.log('🚀 Initialisation de la page matériel...');
-
+    
+    // Afficher un indicateur de chargement
+    showLoadingIndicator();
+    
     try {
-        // 1. Charger les données des produits
-        allProducts = getProductsData();
-        filteredProducts = [...allProducts];
-
-        // 2. Configurer les événements
+        // 1. Initialiser Supabase
+        await initSupabase();
+        
+        // 2. Charger les données depuis Supabase ou localement
+        await loadProductsData();
+        
+        // 3. Configurer les événements
         setupFilterEvents();
         setupSearchEvents();
         setupModalEvents();
-
-        // 3. Afficher les produits initiaux
+        
+        // 4. Afficher les produits
         displayProducts();
-
-        // 4. Mettre à jour les statistiques
+        
+        // 5. Mettre à jour les statistiques
         updateStatistics();
-
+        
+        // 6. Initialiser les fonctionnalités responsives
+        initializeResponsiveFeatures();
+        optimizeImagePerformance();
+        
+        // Afficher le statut de connexion
+        showConnectionStatus();
+        
         console.log(`✅ Page matériel initialisée avec ${allProducts.length} produits`);
-
+        console.log(`📡 Statut Supabase: ${isUsingSupabase ? 'Connecté' : 'Hors ligne'}`);
+        
     } catch (error) {
         console.error('❌ Erreur lors de l\'initialisation:', error);
         showError('Erreur lors du chargement des produits');
+    } finally {
+        hideLoadingIndicator();
+    }
+}
+
+// MODIFICATION 10: Chargement des produits depuis Supabase
+/**
+ * Charge les produits depuis Supabase ou localement
+ */
+async function loadProductsData() {
+    // Tenter de charger depuis Supabase
+    if (supabaseClient) {
+        const supabaseProducts = await fetchProductsFromSupabase();
+        if (supabaseProducts && supabaseProducts.length > 0) {
+            allProducts = supabaseProducts;
+            console.log(`✅ ${allProducts.length} produits chargés depuis Supabase`);
+            
+            // Mettre à jour le localStorage pour le fallback
+            localStorage.setItem('products_data', JSON.stringify(allProducts));
+            filteredProducts = [...allProducts];
+            return;
+        }
+    }
+    
+    // Fallback: Charger depuis localStorage
+    const cachedProducts = localStorage.getItem('products_data');
+    if (cachedProducts) {
+        try {
+            allProducts = JSON.parse(cachedProducts);
+            console.log(`💾 ${allProducts.length} produits chargés depuis le cache`);
+            filteredProducts = [...allProducts];
+            return;
+        } catch (e) {
+            console.warn('Erreur lors du chargement du cache');
+        }
+    }
+    
+    // Dernier recours: Données par défaut
+    allProducts = getProductsData();
+    console.log(`📋 ${allProducts.length} produits chargés depuis les données par défaut`);
+    filteredProducts = [...allProducts];
+    
+    // Sauvegarder dans localStorage
+    localStorage.setItem('products_data', JSON.stringify(allProducts));
+}
+
+/**
+ * Affiche un indicateur de chargement
+ */
+function showLoadingIndicator() {
+    const container = document.getElementById('products-container');
+    if (container) {
+        container.innerHTML = `
+            <div class="loading-state" style="grid-column: 1/-1; text-align: center; padding: 50px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 40px; color: #006837;"></i>
+                <p>Chargement des produits...</p>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Cache l'indicateur de chargement
+ */
+function hideLoadingIndicator() {
+    // L'indicateur sera remplacé par le contenu réel
+}
+
+/**
+ * Affiche le statut de connexion
+ */
+function showConnectionStatus() {
+    if (isUsingSupabase) {
+        console.log('📡 Mode: Connecté à Supabase (produits synchronisés)');
+        const statusBadge = document.createElement('div');
+        statusBadge.className = 'connection-status online';
+        statusBadge.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Catalogue synchronisé';
+        statusBadge.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #28a745; color: white; padding: 8px 15px; border-radius: 20px; font-size: 12px; z-index: 1000;';
+        document.body.appendChild(statusBadge);
+        setTimeout(() => statusBadge.remove(), 5000);
+    } else {
+        console.log('📴 Mode: Hors ligne (catalogue local)');
     }
 }
 
@@ -272,39 +573,44 @@ function createProductCard(product) {
     }
 
     // Générer les étoiles de notation
-    const stars = generateStarRating(product.rating);
+    const stars = generateStarRating(product.rating || 4.0);
 
     // Formater le prix
-    const formattedPrice = `${product.price.toLocaleString()} ${product.currency}`;
+    const formattedPrice = `${(product.price || 0).toLocaleString()} ${product.currency || 'XOF'}`;
+    
+    // Gérer l'image par défaut
+    const imageUrl = product.image && product.image !== 'undefined' ? 
+        product.image : 'assets/images/placeholder.svg';
 
     card.innerHTML = `
         <div class="product-image-container">
-            <img src="${product.image}" alt="${product.name}" class="product-image" 
-                 onerror="this.src='placeholder.jpg'">
+            <img src="${imageUrl}" alt="${product.name}" class="product-image" 
+                 loading="lazy"
+                 onerror="this.src='assets/images/placeholder.svg'">
             ${product.featured ? '<span class="featured-badge">⭐ Vedette</span>' : ''}
             ${product.stock < 10 ? '<span class="low-stock-badge">Stock limité</span>' : ''}
         </div>
         
         <div class="product-info">
             <div class="product-category">
-                ${CATEGORY_ICONS[product.category]} ${CATEGORIES[product.category]}
+                ${CATEGORY_ICONS[product.category] || '🔧'} ${CATEGORIES[product.category] || product.category}
             </div>
             
-            <h3 class="product-name">${product.name}</h3>
-            <p class="product-description">${truncateText(product.description, 100)}</p>
+            <h3 class="product-name">${product.name || 'Sans nom'}</h3>
+            <p class="product-description">${truncateText(product.description || '', 100)}</p>
             
             <div class="product-rating">
                 <div class="stars">${stars}</div>
-                <span class="rating-text">${product.rating} (${product.reviews} avis)</span>
+                <span class="rating-text">${(product.rating || 4.0).toFixed(1)} (${product.reviews || 0} avis)</span>
             </div>
             
             <div class="product-meta">
                 <div class="product-price">${formattedPrice}</div>
-                <div class="product-stock">Stock: ${product.stock}</div>
+                <div class="product-stock">Stock: ${product.stock || 'N/A'}</div>
             </div>
             
             <div class="product-vendor">
-                <i class="fas fa-store"></i> ${product.vendor} - ${product.location}
+                <i class="fas fa-store"></i> ${product.vendor || 'Fournisseur'} - ${product.location || 'Sénégal'}
             </div>
             
             <div class="product-actions">
@@ -342,17 +648,14 @@ function generateStarRating(rating) {
 
     let stars = '';
 
-    // Étoiles pleines
     for (let i = 0; i < fullStars; i++) {
         stars += '<i class="fas fa-star"></i>';
     }
 
-    // Demi-étoile
     if (hasHalfStar) {
         stars += '<i class="fas fa-star-half-alt"></i>';
     }
 
-    // Étoiles vides
     for (let i = 0; i < emptyStars; i++) {
         stars += '<i class="far fa-star"></i>';
     }
@@ -374,19 +677,6 @@ function truncateText(text, maxLength) {
 // ============================================================================
 // GESTION DE LA RESPONSIVITÉ ET DES IMAGES
 // ============================================================================
-
-/**
- * Gère le redimensionnement dynamique des images avec tailles uniformes
- */
-/**
- * Gère le redimensionnement dynamique des images avec tailles uniformes
- * @deprecated Cette fonction est maintenant gérée par CSS
- */
-function handleImageResize() {
-    // La gestion de la taille des images est maintenant faite en CSS
-    // pour assurer une meilleure performance et éviter les sauts de mise en page
-    console.log('📏 Gestion des images déléguée au CSS');
-}
 
 /**
  * Optimise le chargement des images avec lazy loading
@@ -412,79 +702,37 @@ function setupLazyLoading() {
  * Gère les erreurs de chargement d'images
  */
 function handleImageErrors() {
-    const images = document.querySelectorAll('.listing-image, .product-image');
+    const images = document.querySelectorAll('.product-image, .listing-image');
 
     images.forEach(img => {
-        img.addEventListener('error', function () {
-            // Remplacer par une image placeholder ou une icône
-            this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OTI5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vbiBkaXNwb25pYmxlPC90ZXh0Pgo8L3N2Zz4=';
+        img.addEventListener('error', function() {
+            this.src = 'assets/images/placeholder.svg';
             this.alt = 'Image non disponible';
         });
     });
 }
 
 /**
- * Force des hauteurs uniformes pour toutes les cartes
- */
-/**
- * Force des hauteurs uniformes pour toutes les cartes
- * @deprecated Cette fonction est maintenant gérée par CSS
- */
-function enforceUniformCardHeights() {
-    // La gestion des hauteurs est maintenant faite via Flexbox en CSS
-    console.log('📏 Hauteurs uniformes gérées par CSS');
-}
-
-/**
- * Adapte la grille de produits en fonction de la taille d'écran
- */
-/**
- * Adapte la grille de produits en fonction de la taille d'écran
- * @deprecated Cette fonction est maintenant gérée par CSS Grid
- */
-function adjustProductGrid() {
-    // Géré par CSS Grid
-}
-
-/**
- * Adapte la grille des cartes featured material
- * @deprecated Cette fonction est maintenant gérée par CSS Grid
- */
-function adjustFeaturedCards() {
-    // Géré par CSS Grid
-}
-
-/**
- * Initialise tous les ajustements responsives
- */
-/**
  * Initialise tous les ajustements responsives
  */
 function initializeResponsiveFeatures() {
-    // Seulement Lazy Loading et gestion des erreurs
     setupLazyLoading();
     handleImageErrors();
-
-    console.log('📱 Fonctionnalités responsives initialisées (CSS Grid)');
+    console.log('📱 Fonctionnalités responsives initialisées');
 }
 
 /**
  * Optimise les performances des images
  */
 function optimizeImagePerformance() {
-    const images = document.querySelectorAll('.listing-image, .product-image');
+    const images = document.querySelectorAll('.product-image, .listing-image');
 
     images.forEach(img => {
-        // Ajouter loading="lazy" pour les images
         if (!img.hasAttribute('loading')) {
             img.setAttribute('loading', 'lazy');
         }
-
-        // Optimiser les tailles d'image
         img.style.width = '100%';
         img.style.height = 'auto';
-
-        // Ajouter des transitions fluides
         img.style.transition = 'transform 0.3s ease, filter 0.3s ease';
     });
 }
@@ -501,16 +749,9 @@ function setupFilterEvents() {
 
     filterButtons.forEach(button => {
         button.addEventListener('click', () => {
-            // Retirer la classe active de tous les boutons
             filterButtons.forEach(btn => btn.classList.remove('active'));
-
-            // Ajouter la classe active au bouton cliqué
             button.classList.add('active');
-
-            // Mettre à jour la catégorie courante
             currentCategory = button.dataset.category;
-
-            // Appliquer le filtre
             applyFilters();
         });
     });
@@ -525,19 +766,13 @@ function setupSearchEvents() {
     const searchInput = document.getElementById('search-input');
 
     if (searchInput) {
-        // Recherche en temps réel
+        let searchTimeout;
         searchInput.addEventListener('input', (e) => {
-            searchTerm = e.target.value.toLowerCase();
-            applyFilters();
-        });
-
-        // Recherche au submit (pour compatibilité)
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
                 searchTerm = e.target.value.toLowerCase();
                 applyFilters();
-            }
+            }, 300);
         });
     }
 
@@ -550,24 +785,19 @@ function setupSearchEvents() {
 function applyFilters() {
     console.log(`🔍 Application des filtres - Catégorie: ${currentCategory}, Recherche: "${searchTerm}"`);
 
-    // Filtrer par catégorie
     filteredProducts = allProducts.filter(product => {
         const categoryMatch = currentCategory === 'all' || product.category === currentCategory;
 
-        // Filtrer par recherche
         const searchMatch = searchTerm === '' ||
-            product.name.toLowerCase().includes(searchTerm) ||
-            product.description.toLowerCase().includes(searchTerm) ||
-            product.vendor.toLowerCase().includes(searchTerm) ||
-            product.location.toLowerCase().includes(searchTerm);
+            (product.name || '').toLowerCase().includes(searchTerm) ||
+            (product.description || '').toLowerCase().includes(searchTerm) ||
+            (product.vendor || '').toLowerCase().includes(searchTerm) ||
+            (product.location || '').toLowerCase().includes(searchTerm);
 
         return categoryMatch && searchMatch;
     });
 
-    // Afficher les produits filtrés
     displayProducts();
-
-    // Mettre à jour les statistiques
     updateStatistics();
 
     console.log(`📊 Filtres appliqués: ${filteredProducts.length}/${allProducts.length} produits affichés`);
@@ -580,9 +810,9 @@ function updateStatistics() {
     const statsElements = document.querySelectorAll('.stat-number');
 
     if (statsElements.length >= 3) {
-        statsElements[0].textContent = `${allProducts.length}+`; // Équipements
-        statsElements[1].textContent = `${new Set(allProducts.map(p => p.vendor)).size}+`; // Fournisseurs
-        statsElements[2].textContent = `${new Set(allProducts.map(p => p.location)).size}`; // Régions
+        statsElements[0].textContent = `${allProducts.length}+`;
+        statsElements[1].textContent = `${new Set(allProducts.map(p => p.vendor)).size}+`;
+        statsElements[2].textContent = `${new Set(allProducts.map(p => p.location)).size}`;
     }
 }
 
@@ -597,28 +827,26 @@ function setupModalEvents() {
     const modal = document.getElementById('contact-modal');
     const closeButtons = document.querySelectorAll('.close-modal');
 
-    // Fermer le modal avec les boutons de fermeture
     closeButtons.forEach(button => {
         button.addEventListener('click', () => {
             closeModal();
         });
     });
 
-    // Fermer le modal en cliquant à l'extérieur
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeModal();
-        }
-    });
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    }
 
-    // Fermer avec la touche Échap
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             closeModal();
         }
     });
 
-    // Soumission du formulaire de contact
     const contactForm = document.getElementById('contact-form');
     if (contactForm) {
         contactForm.addEventListener('submit', handleContactSubmit);
@@ -632,12 +860,12 @@ function setupModalEvents() {
  * @param {Object} product - Produit concerné
  */
 function openContactModal(product) {
-    const phone = product.phone || product.telephone || '221770000000';
+    const phone = product.phone || '221770000000';
     const cleanPhone = phone.replace(/[\s\-\(\)\+]/g, '');
     const fullPhone = cleanPhone.startsWith('221') ? cleanPhone : '221' + cleanPhone;
 
     const message = encodeURIComponent(
-        `Bonjour, je suis intéressé(e) par "${product.name}" à ${product.price.toLocaleString()} ${product.currency} sur Sénégal Élevage. Est-ce toujours disponible ?`
+        `Bonjour, je suis intéressé(e) par "${product.name}" à ${(product.price || 0).toLocaleString()} ${product.currency || 'XOF'} sur Sénégal Élevage. Est-ce toujours disponible ?`
     );
 
     window.open(`https://wa.me/${fullPhone}?text=${message}`, '_blank');
@@ -649,10 +877,11 @@ function openContactModal(product) {
  */
 function closeModal() {
     const modal = document.getElementById('contact-modal');
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
 
-    // Réinitialiser le formulaire
     const form = document.getElementById('contact-form');
     if (form) {
         form.reset();
@@ -661,36 +890,45 @@ function closeModal() {
     console.log('📞 Modal de contact fermé');
 }
 
+// MODIFICATION 11: Sauvegarde de la demande de contact avec Supabase
 /**
  * Gère la soumission du formulaire de contact
  * @param {Event} e - Événement de soumission
  */
-function handleContactSubmit(e) {
+async function handleContactSubmit(e) {
     e.preventDefault();
 
     const modal = document.getElementById('contact-modal');
-    const productId = modal.dataset.productId;
+    const productId = modal ? modal.dataset.productId : null;
 
-    // Récupérer les données du formulaire
     const formData = {
         productId: productId,
-        userName: document.getElementById('user-name').value,
-        userPhone: document.getElementById('user-phone').value,
-        userRegion: document.getElementById('user-region').value,
-        messageType: document.getElementById('message-type').value,
-        userMessage: document.getElementById('user-message').value,
+        userName: document.getElementById('user-name')?.value || '',
+        userPhone: document.getElementById('user-phone')?.value || '',
+        userRegion: document.getElementById('user-region')?.value || '',
+        userEmail: document.getElementById('user-email')?.value || '',
+        messageType: document.getElementById('message-type')?.value || 'general',
+        userMessage: document.getElementById('user-message')?.value || '',
         timestamp: new Date().toISOString()
     };
 
-    console.log('📝 Données de contact:', formData);
+    console.log('📝 Données de contact:', { ...formData, userMessage: '[CONTENU CACHÉ]' });
 
-    // Simuler l'envoi (à remplacer par un vrai appel API)
-    showNotification('📧 Demande envoyée avec succès ! Le vendeur vous contactera rapidement.');
-
-    // Sauvegarder localement pour suivi
+    let supabaseSuccess = false;
+    
+    // Sauvegarder dans Supabase si disponible
+    if (isUsingSupabase) {
+        supabaseSuccess = await saveContactRequestToSupabase(formData);
+    }
+    
+    // Toujours sauvegarder localement
     saveContactRequest(formData);
 
-    // Fermer le modal
+    const successMessage = supabaseSuccess 
+        ? '📧 Demande envoyée avec succès ! Sauvegardée dans le cloud.'
+        : '📧 Demande envoyée avec succès ! Le vendeur vous contactera rapidement.';
+    
+    showNotification(successMessage);
     closeModal();
 }
 
@@ -701,9 +939,12 @@ function handleContactSubmit(e) {
 function saveContactRequest(requestData) {
     try {
         const requests = JSON.parse(localStorage.getItem('contact_requests') || '[]');
-        requests.unshift(requestData);
+        requests.unshift({
+            ...requestData,
+            id: Date.now(),
+            synced: isUsingSupabase
+        });
 
-        // Garder seulement les 100 dernières demandes
         if (requests.length > 100) {
             requests.splice(100);
         }
@@ -711,32 +952,31 @@ function saveContactRequest(requestData) {
         localStorage.setItem('contact_requests', JSON.stringify(requests));
         console.log('💾 Demande de contact sauvegardée localement');
     } catch (error) {
-        console.error('❌ Erreur lors de la sauvegarde de la demande:', error);
+        console.error('❌ Erreur lors de la sauvegarde:', error);
     }
 }
 
 /**
- * Affiche les détails d'un produit (version simplifiée)
+ * Affiche les détails d'un produit
  * @param {Object} product - Produit à afficher
  */
 function showProductDetails(product) {
     console.log(`📋 Affichage des détails pour: ${product.name}`);
 
-    // Créer un message d'information
     const details = `
-        📋 ${product.name}
+        📋 ${product.name || 'Produit'}
         
-        📝 Description: ${product.description}
+        📝 Description: ${product.description || 'Non disponible'}
         
-        💰 Prix: ${product.price.toLocaleString()} ${product.currency}
+        💰 Prix: ${(product.price || 0).toLocaleString()} ${product.currency || 'XOF'}
         
-        📦 Stock: ${product.stock} unités
+        📦 Stock: ${product.stock || 'N/A'} unités
         
-        ⭐ Note: ${product.rating}/5 (${product.reviews} avis)
+        ⭐ Note: ${(product.rating || 4.0).toFixed(1)}/5 (${product.reviews || 0} avis)
         
-        🏪 Vendeur: ${product.vendor}
+        🏪 Vendeur: ${product.vendor || 'Fournisseur'}
         
-        📍 Localisation: ${product.location}
+        📍 Localisation: ${product.location || 'Sénégal'}
         
         🚚 Livraison: ${product.delivery ? 'Disponible' : 'Non disponible'}
     `;
@@ -761,12 +1001,10 @@ function showNotification(message) {
 
     document.body.appendChild(notification);
 
-    // Animation d'apparition
     setTimeout(() => {
         notification.classList.add('show');
     }, 100);
 
-    // Disparition automatique
     setTimeout(() => {
         notification.classList.remove('show');
         setTimeout(() => {
@@ -824,54 +1062,16 @@ window.MaterielManager = {
     getSearchTerm: () => searchTerm,
     refreshProducts: displayProducts,
     exportContactRequests: () => JSON.parse(localStorage.getItem('contact_requests') || '[]'),
-    handleImageResize: handleImageResize,
-    adjustProductGrid: adjustProductGrid,
-    adjustFeaturedCards: adjustFeaturedCards,
-    optimizeImagePerformance: optimizeImagePerformance
+    optimizeImagePerformance: optimizeImagePerformance,
+    isOnline: () => isUsingSupabase
 };
 
 // ============================================================================
 // INITIALISATION AU CHARGEMENT DE LA PAGE
 // ============================================================================
 
-/**
- * Initialise la page des produits avec toutes les fonctionnalités
- */
-function initializeProductsPage() {
-    console.log('🚀 Initialisation de la page matériel...');
-
-    try {
-        // Charger les données
-        allProducts = getProductsData();
-        filteredProducts = [...allProducts];
-
-        // Afficher les produits
-        displayProducts();
-
-        // Configurer les événements
-        setupFilterEvents();
-        setupSearchEvents();
-        setupModalEvents();
-
-        // Initialiser les fonctionnalités responsives
-        initializeResponsiveFeatures();
-        optimizeImagePerformance();
-
-        // Forcer les hauteurs uniformes après le chargement
-        setTimeout(() => {
-            enforceUniformCardHeights();
-        }, 100);
-
-        console.log('✅ Page matériel initialisée avec succès');
-        console.log(`📦 ${allProducts.length} produits chargés`);
-
-    } catch (error) {
-        console.error('❌ Erreur lors de l\'initialisation:', error);
-        showError('Une erreur est survenue lors du chargement de la page');
-    }
-}
-
 // Initialiser quand le DOM est chargé
 document.addEventListener('DOMContentLoaded', initializeProductsPage);
 
 console.log('✅ Script materiel.js chargé - Prêt pour la page matériel');
+console.log('🔗 Connexion Supabase configurée avec l\'URL:', SUPABASE_URL);
